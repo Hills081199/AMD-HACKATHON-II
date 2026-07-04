@@ -1,0 +1,6 @@
+# Install torch separately with the ROCm index, e.g.:
+# pip install torch --index-url https://download.pytorch.org/whl/rocm6.0
+sentence-transformers==3.0.1
+networkx==3.3
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
