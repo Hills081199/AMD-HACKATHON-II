@@ -1,0 +1,165 @@
+{
+  "topic": "Introduction to Machine Learning",
+  "generated_at": "2026-07-05T10:00:00Z",
+  "user_id": "u_demo_001",
+  "nodes": [
+    {
+      "id": "n1",
+      "title": "Linear Algebra Basics",
+      "concept_key": "linear_algebra_basics",
+      "level": 0,
+      "status": "completed",
+      "prerequisites": [],
+      "position": { "x": 80, "y": 0 },
+      "lesson": {
+        "summary": "Vectors, matrices, and dot products as the language ML models are built on.",
+        "real_world_example": "Image pixels are stored as matrices; convolution is matrix multiplication."
+      },
+      "quiz": {
+        "id": "q_n1",
+        "pass_threshold": 0.7,
+        "questions": [
+          {
+            "id": "q_n1_1",
+            "type": "mcq",
+            "question": "What does the dot product of two vectors measure?",
+            "options": ["Their sum", "Their similarity/alignment", "Their length only", "Nothing meaningful"],
+            "answer_index": 1
+          }
+        ]
+      },
+      "sources": [
+        { "doc_id": "doc_003", "title": "Linear Algebra Lecture Slides", "page": 4 }
+      ]
+    },
+    {
+      "id": "n2",
+      "title": "Probability Basics",
+      "concept_key": "probability_basics",
+      "level": 0,
+      "status": "completed",
+      "prerequisites": [],
+      "position": { "x": 280, "y": 0 },
+      "lesson": {
+        "summary": "Random variables, distributions, and expectation — the tools for reasoning under uncertainty.",
+        "real_world_example": "Spam filters use probability to score how likely an email is spam."
+      },
+      "quiz": {
+        "id": "q_n2",
+        "pass_threshold": 0.7,
+        "questions": [
+          {
+            "id": "q_n2_1",
+            "type": "mcq",
+            "question": "What does the expectation of a random variable represent?",
+            "options": ["Its most frequent value", "Its long-run average value", "Its maximum value", "Its variance"],
+            "answer_index": 1
+          }
+        ]
+      },
+      "sources": [
+        { "doc_id": "doc_004", "title": "Probability for ML (paper)", "page": 2 }
+      ]
+    },
+    {
+      "id": "n3",
+      "title": "Loss Functions",
+      "concept_key": "loss_functions",
+      "level": 1,
+      "status": "unlocked",
+      "prerequisites": ["n1", "n2"],
+      "position": { "x": 180, "y": 140 },
+      "lesson": {
+        "summary": "A loss function scores how wrong a model's prediction is, so it can be improved.",
+        "real_world_example": "Mean squared error penalizes large prediction errors more than small ones, like a stricter grading curve."
+      },
+      "quiz": {
+        "id": "q_n3",
+        "pass_threshold": 0.7,
+        "questions": [
+          {
+            "id": "q_n3_1",
+            "type": "mcq",
+            "question": "What happens to the loss value as predictions get closer to the true values?",
+            "options": ["It increases", "It decreases", "It stays constant", "It becomes negative"],
+            "answer_index": 1
+          }
+        ]
+      },
+      "sources": [
+        { "doc_id": "doc_001", "title": "ML Lecture 3 slides", "page": 11 }
+      ]
+    },
+    {
+      "id": "n4",
+      "title": "Gradient Descent",
+      "concept_key": "gradient_descent",
+      "level": 2,
+      "status": "locked",
+      "prerequisites": ["n3"],
+      "position": { "x": 180, "y": 280 },
+      "lesson": {
+        "summary": "An iterative method that nudges model parameters in the direction that reduces loss.",
+        "real_world_example": "Like walking downhill in fog by always stepping toward the steepest slope you can feel."
+      },
+      "quiz": {
+        "id": "q_n4",
+        "pass_threshold": 0.7,
+        "questions": [
+          {
+            "id": "q_n4_1",
+            "type": "mcq",
+            "question": "What does the learning rate control in gradient descent?",
+            "options": ["The size of each update step", "The number of features", "The loss function used", "The dataset size"],
+            "answer_index": 0
+          }
+        ]
+      },
+      "sources": [
+        { "doc_id": "doc_001", "title": "ML Lecture 4 slides", "page": 6 }
+      ]
+    },
+    {
+      "id": "n5",
+      "title": "Neural Networks",
+      "concept_key": "neural_networks",
+      "level": 3,
+      "status": "locked",
+      "prerequisites": ["n4"],
+      "position": { "x": 180, "y": 420 },
+      "lesson": {
+        "summary": "Layers of simple units that combine to approximate complex functions, trained via gradient descent.",
+        "real_world_example": "Photo apps use neural networks to recognize faces by combining simple edge and shape detectors."
+      },
+      "quiz": {
+        "id": "q_n5",
+        "pass_threshold": 0.7,
+        "questions": [
+          {
+            "id": "q_n5_1",
+            "type": "mcq",
+            "question": "What is the role of an activation function in a neural network?",
+            "options": ["It stores the training data", "It introduces non-linearity between layers", "It deletes unused weights", "It only affects the output layer"],
+            "answer_index": 1
+          }
+        ]
+      },
+      "sources": [
+        { "doc_id": "doc_002", "title": "Deep Learning Intro Paper", "page": 3 }
+      ]
+    }
+  ],
+  "edges": [
+    { "from": "n1", "to": "n3" },
+    { "from": "n2", "to": "n3" },
+    { "from": "n3", "to": "n4" },
+    { "from": "n4", "to": "n5" }
+  ],
+  "user_progress": {
+    "completed_nodes": ["n1", "n2"],
+    "unlocked_nodes": ["n1", "n2", "n3"],
+    "locked_nodes": ["n4", "n5"],
+    "total_nodes": 5,
+    "percent_complete": 40
+  }
+}

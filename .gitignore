@@ -1,3 +1,24 @@
-branch_structure.json
-temp_auto_push.bat
-temp_interactive_push.bat
+# Node / Next.js
+node_modules/
+apps/web/.next/
+apps/web/out/
+apps/web/next-env.d.ts
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+
+# Env
+.env
+.env.local
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Build artifacts
+dist/
+build/
