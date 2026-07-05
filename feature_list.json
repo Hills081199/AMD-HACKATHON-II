@@ -87,13 +87,19 @@
       "description": "Build a networkx.DiGraph from candidate_edges[], run nx.simple_cycles(), and repair any cycle found by dropping its lowest-confidence edge (bounded retry loop; force-drop the weakest edge if a cycle survives N iterations). See docs/concept-graph-pipeline.md step 5.",
       "user_visible_behavior": "The API produces a valid_dag with zero cycles for the demo dataset, with a log of any edges the agent auto-dropped and why.",
       "dependencies": ["feat-003"],
-      "status": "not_started",
+      "status": "passing",
       "verification": [
         "Feed a deliberately cyclic edge set (e.g. an inverted prerequisite) through the repair loop and confirm it converges to a valid DAG within N iterations.",
         "Confirm nx.simple_cycles() returns empty on the final graph."
       ],
-      "evidence": [],
-      "notes": "This is the 'agentic self-check' the hackathon differentiation story leans on (docs/hackathon-scope.md §3) — don't skip the repair-loop logging."
+      "evidence": [
+        "apps/api/app/services/graph.py implements build_graph, repair_cycles (bounded loop dropping the lowest-confidence edge per detected cycle, then a force-drop fallback while-loop if a cycle survives max_iterations), and validate_graph. Wired via a new POST /graph/validate endpoint (apps/api/app/routers/graph.py), mounted in app/main.py.",
+        "apps/api/tests/test_graph.py — 5/5 passed: acyclic input passes through unchanged; a 3-node cycle with one inverted-prerequisite edge (a->b->c->a, weakest edge c->a at 0.3) is repaired by dropping exactly that edge, confirmed via nx.simple_cycles() returning empty on the result; two independent 2-cycles with max_iterations=1 (fewer than the 2 drops needed) prove the force-drop fallback actually fires — first drop logged with an 'iteration N' reason, second with the 'force-dropped' reason, final graph still acyclic; validate_graph's combined edges+dropped_edges output shape.",
+        "apps/api/tests/test_graph_endpoint.py — 1/1 passed: exercises the real POST /graph/validate endpoint via FastAPI TestClient (no fakes needed — step 5 is pure networkx logic, no external API calls).",
+        "This is apps/api's first test suite — added apps/api/requirements-dev.txt (pytest) and wired `cd apps/api && python -m pytest tests/` into init.sh/CLAUDE.md.",
+        "Full run: `python -m compileall app tests` (pass); `python -m pytest tests/` — 6/6 passed in apps/api."
+      ],
+      "notes": "This is the 'agentic self-check' the hackathon differentiation story leans on (docs/hackathon-scope.md §3) — the repair-loop logging (dropped_edges[], each with a from/to/confidence/reason) is what makes it auditable rather than a silent filter; don't drop that when this gets consumed downstream. nx.simple_cycles() is exponential in the worst case — fine for the hackathon's sparse, pre-filtered graphs (dozens/hundreds of nodes), but worth watching if the demo dataset ends up much larger or denser."
     },
     {
       "id": "feat-005",

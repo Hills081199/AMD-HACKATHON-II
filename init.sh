@@ -12,6 +12,9 @@ echo "=== cd apps/web && npm run build ==="
 echo "=== cd apps/api && python -m compileall app ==="
 (cd apps/api && python -m compileall app)
 
+echo "=== cd apps/api && python -m pytest tests/ ==="
+(cd apps/api && python -m pytest tests/)
+
 echo "=== cd packages/gpu-worker && python -m compileall worker ==="
 (cd packages/gpu-worker && python -m compileall worker)
 

@@ -4,12 +4,12 @@
 
 - Last Updated: 2026-07-05
 - Repository root: D:\AMD-HACKATHON-II
-- Current Objective: Build the concept-dependency-graph pipeline end to end (feat-001 → feat-009 in `feature_list.json`). feat-001, feat-002, and feat-003 are now passing; feat-004 (self-checking graph agent) is next, in `apps/api`.
+- Current Objective: Build the concept-dependency-graph pipeline end to end (feat-001 → feat-009 in `feature_list.json`). feat-001 through feat-004 are now passing; feat-005 (topological sort → tiered learning path) is next, in `apps/api`.
 - Standard startup path: `./init.sh`
-- Standard verification path: see "Verification Commands" in `CLAUDE.md` — web lint/build, api/gpu-worker `compileall`, and `cd packages/gpu-worker && python -m pytest tests/` (14/14 passing). Only gpu-worker has a real test suite so far; `apps/api` still has no tests — feat-004 should add one.
-- Highest-priority unfinished feature: feat-004, "Self-checking graph agent (cycle/redundancy repair)"
+- Standard verification path: see "Verification Commands" in `CLAUDE.md` — web lint/build, api/gpu-worker `compileall`, `cd apps/api && python -m pytest tests/` (6/6 passing), and `cd packages/gpu-worker && python -m pytest tests/` (14/14 passing).
+- Highest-priority unfinished feature: feat-005, "Topological sort → tiered learning path"
 - Blockers: none currently. Day-1 risk flagged in `docs/hackathon-scope.md` §5: verify ROCm/PyTorch compatibility on the AMD Developer Cloud box before relying on it. feat-002/feat-003 were verified with fakes (no live Gemma/Ollama server, model download, or Fireworks API key) — worth a real-infra pass once ROCm and Fireworks credentials are provisioned.
-- Recommended Next Step: in `apps/api`, build a `networkx.DiGraph` from feat-003's `candidate_edges[]`, run `nx.simple_cycles()`, and repair any cycle found by dropping its lowest-confidence edge (bounded retry loop; force-drop the weakest edge if a cycle survives N iterations) — see docs/concept-graph-pipeline.md step 5.
+- Recommended Next Step: in `apps/api`, use `nx.topological_generations()` (not a plain `topological_sort`) on feat-004's `valid_dag` to assign each node a `level`, then wire `GET /trees/{topic_id}` to return real `nodes[]`/`edges[]` instead of its current 501 stub — see docs/concept-graph-pipeline.md step 6.
 
 ## Session Log
 
@@ -66,3 +66,15 @@
 - Files or artifacts updated: `packages/gpu-worker/worker/concepts.py` (CanonicalConcept: +id, +embedding), `packages/gpu-worker/worker/prerequisites.py` (new), `packages/gpu-worker/worker/main.py`, `packages/gpu-worker/tests/test_prerequisites.py` (new), `packages/gpu-worker/tests/test_main_build_graph.py` (new), `feature_list.json`, `progress.md`.
 - Known risk or unresolved issue: not verified against a real Fireworks API key/live endpoint — `FireworksClient` is only verified against a monkeypatched `httpx.post`. `candidate_edges[]` haven't been spot-checked against the actual sample tree in `docs/concept-graph-pipeline.md` yet (needs a real Fireworks key + a real feat-002 run); do that once feat-009 picks the demo dataset. Edge `from`/`to` use concept `id` (e.g. `concept_001`), not name — worth confirming that's what feat-004/feat-005/feat-006 expect downstream.
 - Next best step: implement feat-004 (self-checking graph agent — cycle detection + repair loop) in `apps/api`, consuming feat-003's `candidate_edges[]`.
+
+### Session 005
+
+- Date: 2026-07-05
+- Goal: Implement feat-004, "Self-checking graph agent (cycle/redundancy repair)."
+- Completed: Added `apps/api/app/services/graph.py` — `build_graph` (candidate_edges[] → `networkx.DiGraph` with a `confidence` edge attribute), `repair_cycles` (bounded loop: on each iteration, find all cycles via `nx.simple_cycles()`, drop the lowest-confidence edge in the shortest one; after `max_iterations`, fall back to an unbounded while-loop that force-drops the weakest edge in any remaining cycle so the agent always terminates with a valid DAG), and `validate_graph` (orchestrates both, returns `{"edges": ..., "dropped_edges": [...]}` — the drop log with a `reason` per entry is what makes this auditable as an "agentic self-check" rather than a silent filter). Wired a new `POST /graph/validate` endpoint. This is `apps/api`'s first feature with real logic, so also set up its first test suite (`apps/api/tests/`, `apps/api/requirements-dev.txt`) and wired `pytest` into `init.sh`/`CLAUDE.md`.
+- Verification run: `python -m compileall app tests` (pass); `python -m pytest tests/` in `apps/api` — 6/6 passed, including a test that specifically forces the force-drop fallback path (two independent 2-cycles, `max_iterations=1`, only 1 of the 2 needed drops fits the bounded budget) and confirms the result is still acyclic. Also re-ran `packages/gpu-worker`'s suite — 14/14, no regressions.
+- Evidence captured: recorded in `feature_list.json` feat-004 `evidence[]`.
+- Commits: not yet committed this session.
+- Files or artifacts updated: `apps/api/app/services/__init__.py` (new), `apps/api/app/services/graph.py` (new), `apps/api/app/routers/graph.py` (new), `apps/api/app/main.py`, `apps/api/requirements-dev.txt` (new), `apps/api/tests/__init__.py` (new), `apps/api/tests/test_graph.py` (new), `apps/api/tests/test_graph_endpoint.py` (new), `init.sh`, `CLAUDE.md`, `feature_list.json`.
+- Known risk or unresolved issue: `nx.simple_cycles()` is exponential in the worst case — fine for the hackathon's sparse, pre-filtered graphs, but worth watching if the real demo dataset ends up much larger/denser than expected. Not yet run on a real candidate-edge set from a live feat-003 run (Fireworks) — only synthetic edge lists in tests.
+- Next best step: implement feat-005 (topological sort via `nx.topological_generations()`, tier assignment) in `apps/api`, and wire `GET /trees/{topic_id}` to return real data instead of its 501 stub.
