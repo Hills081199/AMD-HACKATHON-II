@@ -32,7 +32,7 @@
         "Manually exercised POST /ingest via FastAPI TestClient with a synthetic PDF: 200 response, {'chunks': [{'doc_id': 'sample.pdf', 'chunk_id': 'sample.pdf:p1', 'page': 1, 'text': 'Test ingest endpoint page one.'}]}.",
         "No real sample PDF/PPTX/DOCX exists in data/ yet (only the mastery-tree sample JSON) — verified against synthetic fixtures built in the test file instead; re-verify against the actual demo dataset once feat-009 picks a document set."
       ],
-      "notes": "worker/main.py's /embed still raises NotImplementedError, now reserved for feat-002 (embedding + concept extraction on Gemma). docx has no rendered page numbers, so its `page` field is the 1-indexed heading-delimited section instead — documented in ingest.py."
+      "notes": "worker/main.py's /embed now implements feat-002. docx has no rendered page numbers, so its `page` field is the 1-indexed heading-delimited section instead — documented in ingest.py."
     },
     {
       "id": "feat-002",
@@ -42,29 +42,42 @@
       "description": "Vectorize chunks with sentence-transformers (bge-large/e5-large) on ROCm-enabled PyTorch, extract raw_concepts[] per chunk via Gemma (2B/7B) served locally through vLLM-ROCm/Ollama, then cluster/dedupe into canonical_concepts[] via cosine similarity + Louvain clustering (no LLM call needed for dedupe). See docs/concept-graph-pipeline.md steps 2-3.",
       "user_visible_behavior": "packages/gpu-worker/worker/main.py's /embed endpoint returns canonical_concepts[] (name, short definition, originating chunk_id) instead of the current stub.",
       "dependencies": ["feat-001"],
-      "status": "not_started",
+      "status": "passing",
       "verification": [
         "Run the sample demo dataset through the endpoint and confirm canonical_concepts[] merges near-duplicate phrasings (e.g. 'gradient descent' vs 'steepest-descent optimization') into one node.",
         "Confirm Gemma is invoked via a local ROCm/Ollama endpoint, not a hosted API call — this is required for the Best Use of Gemma bonus and AMD platform usage criterion (see docs/brd.md §4.3, §7.3)."
       ],
-      "evidence": [],
-      "notes": ""
+      "evidence": [
+        "packages/gpu-worker/worker/concepts.py implements GemmaConceptExtractor (HTTP client against {GEMMA_BASE_URL}/api/generate — an Ollama-style local endpoint, default http://localhost:11434), SentenceTransformerEmbedder (lazy-loaded bge-large-en-v1.5), and cluster_concepts (cosine similarity + networkx.algorithms.community.louvain_communities, no LLM call).",
+        "packages/gpu-worker/tests/test_concepts.py — 4/4 passed: confirms GemmaConceptExtractor POSTs to '{base_url}/api/generate' (asserted literally, so a regression to a hosted-API URL would fail this test); confirms cluster_concepts merges 'gradient descent' and 'the steepest-descent optimization algorithm' into one canonical concept (shorter name wins) while keeping 'linear regression' separate; confirms extract_raw_concepts aggregates across chunks; confirms empty input returns [].",
+        "packages/gpu-worker/tests/test_main_embed.py — 1/1 passed: exercises the real POST /embed endpoint end-to-end via FastAPI TestClient with fakes swapped in through app.dependency_overrides (get_gemma_extractor, get_embedder), proving the endpoint wiring itself (not just the underlying functions) works.",
+        "Full suite: `python -m pytest tests/` — 9/9 passed (4 feat-001 + 5 feat-002, no regressions). `python -m compileall worker tests` — pass.",
+        "Not run against a live local Gemma/Ollama server or a real sentence-transformers model download — both are behind fakes in the test suite by design (network/GPU-independent tests). Re-verify against a real vLLM-ROCm/Ollama instance on the AMD Developer Cloud box once that's provisioned (see docs/hackathon-scope.md §5 Day-1 ROCm check)."
+      ],
+      "notes": "GEMMA_BASE_URL env var controls the local endpoint (default http://localhost:11434, matching Ollama's default port); no hosted-API fallback is wired in on purpose. Update: CanonicalConcept now also carries `id` (concept_NNN) and `embedding` (cluster centroid), returned from /embed — added while implementing feat-003, which needs both for pair pre-filtering without re-embedding concepts from scratch."
     },
     {
       "id": "feat-003",
       "priority": 3,
-      "area": "api",
+      "area": "gpu-worker",
       "name": "Dependency-graph construction (prerequisite inference)",
       "description": "For pre-filtered concept pairs only (high embedding similarity or nearby co-occurrence), call Fireworks AI (Llama 3.x) to infer directed prerequisite edges with a confidence score. See docs/concept-graph-pipeline.md step 4 and the O(n^2) cost-avoidance note.",
-      "user_visible_behavior": "A candidate_edges[] list (from, to, confidence) is produced for the demo dataset and handed to apps/api.",
+      "user_visible_behavior": "packages/gpu-worker/worker/main.py's POST /build-graph endpoint takes /embed's concepts[] output and returns {\"edges\": [...]} (candidate_edges[] as from/to/confidence, keyed by concept id) instead of the current NotImplementedError stub.",
       "dependencies": ["feat-002"],
-      "status": "not_started",
+      "status": "passing",
       "verification": [
         "Confirm the number of Fireworks calls scales with pre-filtered pairs, not all-pairs O(n^2), for the demo dataset.",
         "Spot-check a few candidate_edges[] against the sample tree in docs/concept-graph-pipeline.md for plausibility."
       ],
-      "evidence": [],
-      "notes": ""
+      "evidence": [
+        "packages/gpu-worker/worker/prerequisites.py implements pre_filter_pairs (cosine similarity over concept embeddings from feat-002's /embed output) and FireworksClient (hosted OpenAI-compatible chat completions — a hosted call is fine here, unlike Gemma extraction, since this isn't the AMD-usage/Gemma-bonus story) and build_candidate_edges.",
+        "packages/gpu-worker/tests/test_prerequisites.py — 4/4 passed. test_pre_filter_pairs_avoids_full_all_pairs_scan directly proves the O(n^2) avoidance: 6 concepts in 3 tight similarity clusters yield C(6,2)=15 possible pairs, but pre_filter_pairs returns exactly the 3 within-cluster pairs. test_build_candidate_edges_only_calls_fireworks_for_prefiltered_pairs asserts the fake Fireworks client is called exactly 3 times (once per pre-filtered pair), not 15.",
+        "packages/gpu-worker/tests/test_main_build_graph.py — 1/1 passed: exercises the real POST /build-graph endpoint via FastAPI TestClient + app.dependency_overrides (no real Fireworks API key/network needed).",
+        "Full suite: `python -m pytest tests/` — 14/14 passed (4 feat-001 + 5 feat-002 + 5 feat-003, no regressions). `python -m compileall worker tests` — pass.",
+        "Not yet spot-checked against the actual sample tree in docs/concept-graph-pipeline.md — that requires a real Fireworks API key and a real concept set from feat-002 run end-to-end; do this once feat-009 picks the demo dataset.",
+        "Not run against a live Fireworks API — FireworksClient is only verified against a monkeypatched httpx.post."
+      ],
+      "notes": "Corrected this feature's `area` from \"api\" to \"gpu-worker\" — docs/architecture.md's Data contract section says gpu-worker produces the candidate graph (including inferred prerequisite edges) and hands it to api, which starts at the self-checking validation loop (feat-004). The original area value was inconsistent with that. CanonicalConcept (feat-002) gained `id` and `embedding` fields to support this feature's pre-filtering — see concepts.py."
     },
     {
       "id": "feat-004",
