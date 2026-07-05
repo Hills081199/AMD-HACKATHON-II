@@ -153,13 +153,19 @@
       "description": "For a given node, retrieve only that node's source chunks (via chunk_id/doc_id carried through since step 1), then call Fireworks to generate a lesson, an MCQ checkpoint quiz, and a real-world example, with a self-check that the quiz matches the lesson before returning it.",
       "user_visible_behavior": "An endpoint returns { lesson, quiz, example, sources } for a node_id, scoped to that node's cited chunks only — not whole-corpus prompting.",
       "dependencies": ["feat-005"],
-      "status": "not_started",
+      "status": "passing",
       "verification": [
         "Confirm the retrieval set passed to Fireworks is limited to the node's own sources[], not the full corpus.",
         "Confirm the self-check step rejects/regenerates a quiz that doesn't match its lesson at least once during testing (force a mismatch to verify the guard fires)."
       ],
-      "evidence": [],
-      "notes": "Can proceed in parallel with feat-006 once feat-005 is done — both only need the tiered graph, not the finished UI."
+      "evidence": [
+        "apps/api/app/services/teach.py implements FireworksClient (generate() for lesson/quiz/example, check_alignment() for the self-check) and generate_lesson_package() — a bounded retry loop (default max_attempts=2) that regenerates the whole lesson/quiz/example package when check_alignment() reports a mismatch, and always returns a result (flagged via self_check.passed=False rather than raising) if every attempt still fails, so a demo never hard-crashes on a stubborn misalignment.",
+        "apps/api/app/routers/teach.py wires POST /trees/{topic_id}/nodes/{node_id}/lesson via FastAPI Depends(get_fireworks_client) (same dependency-override pattern as gpu-worker's /embed and /build-graph). The endpoint only ever sees the chunks the caller puts in the request body — there is no corpus-wide chunk store wired in yet (see notes below), so scoping is enforced by the request shape itself, not by a filter that could regress.",
+        "apps/api/tests/test_teach.py — 4/4 passed: first-attempt pass-through; test_generate_lesson_package_retrieval_is_scoped_to_only_this_nodes_chunks asserts the exact chunk list sent to FireworksClient.generate() equals the input chunks (nothing added); test_generate_lesson_package_regenerates_on_a_forced_quiz_lesson_mismatch forces check_alignment() to fail on attempt 1 and pass on attempt 2, and asserts generate() was actually called twice (a real regeneration, not just a re-check) and the returned lesson is the v2 (regenerated) one; test_generate_lesson_package_flags_unpassed_self_check_after_exhausting_attempts forces both attempts to fail and confirms the function still returns the last attempt with self_check.passed=False instead of raising.",
+        "apps/api/tests/test_teach_endpoint.py — 1/1 passed: exercises the real POST endpoint via FastAPI TestClient + app.dependency_overrides (no real Fireworks API key/network needed), confirming sources[] in the response strips chunk text down to chunk_id/doc_id/page only (citations, not the raw excerpt).",
+        "Full run: `python -m compileall app tests` (pass); `python -m pytest tests/` in apps/api — 16/16 passed (5 feat-004 + 6 feat-005 + 5 feat-007, no regressions). packages/gpu-worker re-run — 14/14, no regressions. `./init.sh` (web lint/build + both python suites) — all green."
+      ],
+      "notes": "Scope decision: apps/api has no persisted chunk-text store yet (docs/hackathon-scope.md §5's SQLite/JSON storage line item hasn't been built as its own feature) — chunks only ever existed ephemerally inside a single /ingest→/embed request in gpu-worker. Rather than inventing a chunk store as a side effect of this feature, POST /trees/{topic_id}/nodes/{node_id}/lesson takes the node's own chunks[] (chunk_id/doc_id/page/text) directly in the request body; the caller (eventually feat-009's pre-indexing run, or a future storage layer) is responsible for looking those up by the node's sources[]. This mirrors feat-005's precedent of explicitly punting live-pipeline wiring to a later integration pass. Can proceed in parallel with feat-006 once feat-005 is done — both only need the tiered graph, not the finished UI."
     },
     {
       "id": "feat-008",

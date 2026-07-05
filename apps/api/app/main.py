@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import graph, trees
+from app.routers import graph, teach, trees
 
 app = FastAPI(title="Atlas API", version="0.1.0")
 
@@ -14,6 +14,7 @@ app.add_middleware(
 
 app.include_router(trees.router, prefix="/trees", tags=["trees"])
 app.include_router(graph.router, prefix="/graph", tags=["graph"])
+app.include_router(teach.router, prefix="/trees", tags=["teach"])
 
 
 @app.get("/health")
