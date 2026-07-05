@@ -28,6 +28,7 @@ Run these before claiming any feature complete:
 - `cd apps/web && npm run build`
 - `cd apps/api && python -m compileall app`
 - `cd packages/gpu-worker && python -m compileall worker`
+- `cd packages/gpu-worker && python -m pytest tests/` (install `packages/gpu-worker/requirements-dev.txt` first)
 
 The primary verification entrypoint is `./init.sh`.
 

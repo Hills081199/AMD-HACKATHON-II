@@ -2,31 +2,31 @@
 
 ## Verified Now
 
-- What is currently working: only scaffolding — `apps/web` (Next.js placeholder pages), `apps/api` (FastAPI app with a `/health` endpoint and a `trees` router that 501s on both routes), `packages/gpu-worker` (FastAPI app with a `/health` endpoint; `/embed` and `/build-graph` raise `NotImplementedError`). No pipeline stage is implemented yet.
-- What verification actually ran: none against feature code this session (docs consolidation + harness scaffolding only). `./init.sh` has not been run yet — do that first next session to confirm the baseline (lint/build/compileall) is green before starting feat-001.
+- What is currently working: `packages/gpu-worker`'s `POST /ingest` endpoint accepts multipart PDF/PPTX/DOCX uploads and returns `chunks[]` with `doc_id`/`chunk_id`/`page`/`text`, chunked by page/slide/heading boundary (feat-001, passing). Everything else is still scaffolding: `apps/web` (Next.js placeholder pages), `apps/api` (FastAPI app with `/health` and a `trees` router that 501s on both routes), `packages/gpu-worker`'s `/embed` and `/build-graph` still raise `NotImplementedError` (reserved for feat-002+).
+- What verification actually ran: `cd packages/gpu-worker && python -m pytest tests/` — 4/4 passed. `python -m compileall worker tests` — pass. Manually exercised `POST /ingest` via FastAPI `TestClient` with a synthetic PDF and got the expected chunk back. Did **not** run the full `./init.sh` this session (web deps still need `npm install`, unchanged from last session).
 
 ## Changed This Session
 
-- Code or behavior added: none.
-- Infrastructure or harness changes: added `CLAUDE.md`, `feature_list.json`, `progress.md`, `session-handoff.md`, `init.sh` (harness-creator scaffold); fixed a subshell-isolation bug in the generated `init.sh`.
-- Files modified: consolidated `docs/` from 5 files to 4 (`brd.md`, `hackathon-scope.md`, `concept-graph-pipeline.md`, `architecture.md`) — see `progress.md` Session 001 for the full list of doc changes.
+- Code or behavior added: `packages/gpu-worker/worker/ingest.py` (`chunk_document()` for PDF/PPTX/DOCX); `POST /ingest` endpoint in `worker/main.py`.
+- Infrastructure or harness changes: added `pymupdf`/`python-pptx`/`python-docx`/`python-multipart` to `packages/gpu-worker/requirements.txt`; added `packages/gpu-worker/requirements-dev.txt` (pytest, not installed in the runtime container); added the pytest command to `init.sh` and `CLAUDE.md`'s verification list.
+- Files modified: `packages/gpu-worker/worker/ingest.py` (new), `packages/gpu-worker/worker/main.py`, `packages/gpu-worker/requirements.txt`, `packages/gpu-worker/requirements-dev.txt` (new), `packages/gpu-worker/tests/test_ingest.py` (new), `init.sh`, `CLAUDE.md`, `feature_list.json`, `progress.md`.
 
 ## Broken Or Unverified
 
-- Known defect: none in application code (nothing is implemented yet to be broken).
-- Unverified path: `./init.sh` itself hasn't been run end-to-end since the fix. The two Python `compileall` commands were manually verified this session and pass. The web `lint`/`build` commands were not run — `apps/web/node_modules` isn't installed yet; run `npm install` in `apps/web` before the first `./init.sh` call.
-- Blockers for the next session: none. Day-1 ROCm/PyTorch compatibility check (docs/hackathon-scope.md §5) is the first real risk once GPU work starts.
+- Known defect: none found in the new ingest code.
+- Unverified path: no real sample PDF/PPTX/DOCX exists in `data/` yet — feat-001 was verified against synthetic in-memory fixtures built in the test file, not a real document. `apps/web` lint/build still unverified (node_modules not installed).
+- Blockers for the next session: none. Day-1 ROCm/PyTorch compatibility check (docs/hackathon-scope.md §5) is still the first real risk once GPU embedding/Gemma work starts in feat-002.
 
 ## Next Session
 
-- Highest-priority unfinished feature: feat-001, "Document ingest & chunking" (`packages/gpu-worker/worker/main.py`, `/embed` endpoint).
-- Why it is next: every other pipeline stage (feat-002 through feat-009) depends on it, per `feature_list.json` dependencies.
-- What counts as passing: feed a sample PDF/PPTX/DOCX from `data/` through `/embed` and get back `chunks[]` with `doc_id`/`page`/`chunk_id` populated, split on heading/slide boundaries — see the `verification` array on feat-001.
-- What must not change during that step: don't start feat-002's Gemma/embedding logic in the same pass — keep ingest and embedding as separate, separately-verified steps per the harness's one-feature-at-a-time rule.
-- Recommended Next Step: run `./init.sh` first, then implement feat-001.
+- Highest-priority unfinished feature: feat-002, "Embedding + concept extraction & clustering" (`packages/gpu-worker/worker/main.py`, `/embed` endpoint).
+- Why it is next: feat-001 (its only dependency) is now passing.
+- What counts as passing: `/embed` takes `chunk_document()` output, produces embeddings via sentence-transformers, extracts `raw_concepts[]` per chunk via Gemma served **locally** (vLLM-ROCm/Ollama — not a hosted API, this is judging-critical, see feat-002's verification notes), then clusters/dedupes into `canonical_concepts[]` via cosine similarity + Louvain (no LLM call needed for that half).
+- What must not change during that step: don't start feat-003's Fireworks prerequisite-inference logic in the same pass — keep embedding/extraction/clustering and prerequisite inference as separate, separately-verified steps.
+- Recommended Next Step: install `packages/gpu-worker/requirements-dev.txt`, confirm `python -m pytest tests/` still passes (regression check), then implement feat-002.
 
 ## Commands
 
 - Startup: `./init.sh`
 - Verification: see `CLAUDE.md` "Verification Commands"; per-feature checks live in `feature_list.json`.
-- Focused debug command: `cd packages/gpu-worker && uvicorn worker.main:app --reload --port 8100` then `curl -X POST localhost:8100/embed -d '{...}'` once feat-001 has real logic.
+- Focused debug command: `cd packages/gpu-worker && python -m pytest tests/ -v` for the ingest suite; `uvicorn worker.main:app --reload --port 8100` to run the service manually.

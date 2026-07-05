@@ -19,15 +19,20 @@
       "area": "gpu-worker",
       "name": "Document ingest & chunking",
       "description": "Parse uploaded PDF/PPTX/DOCX files and split into chunks by heading/slide boundary (not a hard character count), producing chunks[] with doc_id, page, and chunk_id. See docs/concept-graph-pipeline.md step 1.",
-      "user_visible_behavior": "POST /embed (or a dedicated ingest endpoint) on packages/gpu-worker accepts a document set and returns chunk records instead of the current NotImplementedError stub in worker/main.py.",
+      "user_visible_behavior": "POST /ingest on packages/gpu-worker accepts multipart file uploads (PDF/PPTX/DOCX) and returns {\"chunks\": [...]} with doc_id/chunk_id/page/text populated per chunk. /embed is left for feat-002 (embedding + concept extraction).",
       "dependencies": [],
-      "status": "not_started",
+      "status": "passing",
       "verification": [
         "Run packages/gpu-worker with a sample PDF/PPTX/DOCX from data/ and confirm chunks[] is returned with doc_id, page, chunk_id populated for each chunk.",
         "Confirm no chunk splits a heading/slide boundary in the middle for the sample set."
       ],
-      "evidence": [],
-      "notes": "worker/main.py currently raises NotImplementedError for /embed and /build-graph — this is the first TODO to close."
+      "evidence": [
+        "packages/gpu-worker/worker/ingest.py implements chunk_document() (PDF: one chunk per page via PyMuPDF; PPTX: one chunk per slide via python-pptx; DOCX: one chunk per Heading-delimited section via python-docx).",
+        "packages/gpu-worker/tests/test_ingest.py — 4/4 passed (`python -m pytest tests/`): PDF splits by page, PPTX splits by slide, DOCX splits on heading boundaries without cutting a section in half, unsupported extensions raise ValueError.",
+        "Manually exercised POST /ingest via FastAPI TestClient with a synthetic PDF: 200 response, {'chunks': [{'doc_id': 'sample.pdf', 'chunk_id': 'sample.pdf:p1', 'page': 1, 'text': 'Test ingest endpoint page one.'}]}.",
+        "No real sample PDF/PPTX/DOCX exists in data/ yet (only the mastery-tree sample JSON) — verified against synthetic fixtures built in the test file instead; re-verify against the actual demo dataset once feat-009 picks a document set."
+      ],
+      "notes": "worker/main.py's /embed still raises NotImplementedError, now reserved for feat-002 (embedding + concept extraction on Gemma). docx has no rendered page numbers, so its `page` field is the 1-indexed heading-delimited section instead — documented in ingest.py."
     },
     {
       "id": "feat-002",

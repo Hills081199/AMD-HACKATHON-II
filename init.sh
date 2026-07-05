@@ -15,6 +15,9 @@ echo "=== cd apps/api && python -m compileall app ==="
 echo "=== cd packages/gpu-worker && python -m compileall worker ==="
 (cd packages/gpu-worker && python -m compileall worker)
 
+echo "=== cd packages/gpu-worker && python -m pytest tests/ ==="
+(cd packages/gpu-worker && python -m pytest tests/)
+
 echo "=== Verification Complete ==="
 echo ""
 echo "Next steps:"
