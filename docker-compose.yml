@@ -20,7 +20,7 @@ services:
       - ./data:/data
       - ./apps/api:/app
     environment:
-      - SAMPLE_TREE_PATH=/data/atlas_mastery_tree_sample.json
+      - SAMPLE_TREE_PATH=/data/generated/demo_tree.generated.json
     depends_on:
       - gpu-worker
 
