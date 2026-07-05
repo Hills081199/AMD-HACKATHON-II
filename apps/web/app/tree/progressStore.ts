@@ -7,8 +7,9 @@ interface TreeProgressState {
 }
 
 /** Client-side progress state so completing a node unlocks its children
- * immediately, without a page reload — a stand-in for feat-008's real
- * checkpoint-quiz submission, which will call markCompleted() on a pass. */
+ * immediately, without a page reload. page.tsx calls markCompleted() when
+ * feat-008's checkpoint-quiz submission (POST .../submit-quiz) reports a
+ * pass. */
 export const useTreeProgressStore = create<TreeProgressState>((set) => ({
   completedIds: new Set(),
   seedCompleted: (ids) => set({ completedIds: new Set(ids) }),

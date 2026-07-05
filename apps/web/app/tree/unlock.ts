@@ -53,5 +53,6 @@ export function toDisplayNodes(
     label: node.title ?? node.name ?? node.id,
     level: node.level,
     status: statuses.get(node.id) ?? "locked",
+    quiz: node.quiz,
   }));
 }

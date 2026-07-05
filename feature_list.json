@@ -175,13 +175,22 @@
       "description": "Wire the MCQ quiz UI to POST /trees/{topic_id}/nodes/{node_id}/submit-quiz; on pass, mark the node mastered and unlock its children per feat-006's unlock logic.",
       "user_visible_behavior": "Passing a node's quiz in the UI immediately unlocks its downstream nodes, replacing the current 501 stub in apps/api/app/routers/trees.py's submit_quiz.",
       "dependencies": ["feat-006", "feat-007"],
-      "status": "not_started",
+      "status": "passing",
       "verification": [
         "Submit a passing quiz answer set and confirm the node's status flips to mastered and children flip to unlocked in the UI.",
         "Submit a failing answer set and confirm the node stays locked/unlocked (not mastered) and children stay locked."
       ],
-      "evidence": [],
-      "notes": ""
+      "evidence": [
+        "apps/api/app/services/quiz.py implements grade_quiz(quiz, answers) — a pure function scoring a submitted answer set against a node's questions[] (id/answer_index) and pass_threshold, returning {score, correct, total, passed}; a missing answer for a question counts as wrong rather than raising.",
+        "apps/api/app/routers/trees.py's POST /trees/{topic_id}/nodes/{node_id}/submit-quiz replaces the 501 stub: loads the tree (shared _load_tree() helper, refactored out of GET /trees/{topic_id}), looks up the node's quiz by node_id (404 if the node doesn't exist), and grades it via grade_quiz(). Does not persist status server-side — apps/api still has no storage layer (same scope note as feat-007) — so the response is graded fresh each call; apps/web's progressStore (feat-006) remains the source of truth for which nodes are completed, and only calls markCompleted() when this endpoint reports passed=true.",
+        "apps/api/tests/test_quiz.py — 4/4 passed: all-correct passes; a below-threshold set fails; an unanswered question counts as wrong (not an error); a single-question quiz meeting the threshold exactly still passes (boundary case).",
+        "apps/api/tests/test_trees_submit_quiz_endpoint.py — 3/3 passed against the real checked-in sample dataset (node n3 'Loss Functions', question q_n3_1, answer_index 1, pass_threshold 0.7): correct answer -> passed=true/score=1.0; wrong answer -> passed=false/score=0.0; unknown node_id -> 404.",
+        "apps/web: added app/tree/QuizModal.tsx (renders the node's quiz.questions[] as radio-button MCQs, disables Submit until every question is answered, shows a pass/fail message inline). Extended types.ts (Quiz/QuizQuestion, RawTreeNode.quiz, DisplayNode.quiz) and unlock.ts (carries quiz through toDisplayNodes()) so the quiz definition reaches the click handler. page.tsx's handleNodeClick now opens the modal for an unlocked node with a quiz (instead of feat-006's demo-only 'any click passes it' stand-in); submitQuiz() POSTs to the new endpoint and calls markCompleted() only when passed is true, reusing feat-006's existing progressStore/unlock.ts unchanged.",
+        "`npm run lint` (clean) and `npm run build` (compiles + type-checks) after the frontend changes.",
+        "Manually verified live in a browser (not just typecheck/build): started apps/api (uvicorn) and apps/web (next dev — port 3001, 3000 was already taken), used Playwright (installed temporarily, then removed) to drive /tree. Found and fixed a real bug in the process: an orphaned uvicorn process from an earlier session was still bound to port 8000 serving the pre-feat-008 code, so the first submit-quiz request 501'd even though the source was already correct — killed the stale process, started a fresh one, and confirmed the fix via curl before re-testing in the browser. Clicked the unlocked 'Loss Functions' node to open its quiz modal; submitted the wrong option first and confirmed 'Not quite — 0/1 correct. Try again.' with the modal staying open and the tree unchanged; then submitted the correct option and confirmed 'Passed! (1/1 correct)'. Closed the modal and confirmed (screenshot-verified) 'Loss Functions' turned green (completed) and 'Gradient Descent' flipped from grey/locked to blue/unlocked immediately, with 'Neural Networks' correctly still locked — no page reload, no console errors.",
+        "Full run: apps/api 23/23 (5 feat-004 + 6 feat-005 + 5 feat-007 + 4 feat-008-quiz + 3 feat-008-endpoint, no regressions), packages/gpu-worker 14/14. `./init.sh` end-to-end — all green."
+      ],
+      "notes": "Grading is stateless/re-derived per request (no DB), consistent with feat-006's design of trusting the graph structure + a client-side completed-id set over any server-persisted status field. A real storage layer (to persist completed status server-side, e.g. for multi-device/session continuity) is still open — same gap flagged in feat-007's notes, worth addressing together in a future storage-layer feature rather than per-endpoint."
     },
     {
       "id": "feat-009",

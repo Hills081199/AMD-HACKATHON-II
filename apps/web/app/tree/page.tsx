@@ -7,6 +7,7 @@ import { Background, Controls, ReactFlow, type Edge, type NodeMouseHandler } fro
 
 import { layoutNodesByLevel } from "./positions";
 import { useTreeProgressStore } from "./progressStore";
+import { QuizModal, type QuizResult } from "./QuizModal";
 import { TreeNode, type TreeFlowNode } from "./TreeNode";
 import type { TreeResponse } from "./types";
 import { seedCompletedIds, toDisplayNodes } from "./unlock";
@@ -25,6 +26,11 @@ export default function TreePage() {
   const completedIds = useTreeProgressStore((state) => state.completedIds);
   const seedCompleted = useTreeProgressStore((state) => state.seedCompleted);
   const markCompleted = useTreeProgressStore((state) => state.markCompleted);
+
+  const [quizNodeId, setQuizNodeId] = useState<string | null>(null);
+  const [quizSubmitting, setQuizSubmitting] = useState(false);
+  const [quizResult, setQuizResult] = useState<QuizResult | null>(null);
+  const [quizError, setQuizError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`${API_URL}/trees/${TOPIC_ID}`)
@@ -64,14 +70,53 @@ export default function TreePage() {
     return { flowNodes: nextFlowNodes, flowEdges: nextFlowEdges };
   }, [tree, completedIds]);
 
-  // Demo-only stand-in for feat-008's real checkpoint-quiz submission:
-  // clicking an unlocked node "passes" it immediately, so unlocking its
-  // children is visible without a page reload.
+  // Clicking an unlocked node with a checkpoint quiz opens it; completed and
+  // locked nodes don't respond to clicks (locked has nothing to do yet,
+  // completed already passed its quiz).
   const handleNodeClick: NodeMouseHandler<TreeFlowNode> = (_event, node) => {
-    if (node.data.status === "unlocked") {
-      markCompleted(node.id);
+    if (node.data.status !== "unlocked") {
+      return;
+    }
+    const rawNode = tree?.nodes.find((candidate) => candidate.id === node.id);
+    if (!rawNode?.quiz) {
+      return;
+    }
+    setQuizNodeId(node.id);
+    setQuizResult(null);
+    setQuizError(null);
+  };
+
+  const closeQuiz = () => {
+    setQuizNodeId(null);
+    setQuizResult(null);
+    setQuizError(null);
+  };
+
+  const submitQuiz = async (nodeId: string, answers: Record<string, number>) => {
+    setQuizSubmitting(true);
+    setQuizError(null);
+    try {
+      const response = await fetch(`${API_URL}/trees/${TOPIC_ID}/nodes/${nodeId}/submit-quiz`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answers }),
+      });
+      if (!response.ok) {
+        throw new Error(`submit-quiz failed: ${response.status}`);
+      }
+      const body = (await response.json()) as QuizResult;
+      setQuizResult(body);
+      if (body.passed) {
+        markCompleted(nodeId);
+      }
+    } catch (err) {
+      setQuizError(err instanceof Error ? err.message : "Could not submit the quiz.");
+    } finally {
+      setQuizSubmitting(false);
     }
   };
+
+  const quizNode = quizNodeId ? tree?.nodes.find((candidate) => candidate.id === quizNodeId) : undefined;
 
   if (error) {
     return (
@@ -95,6 +140,17 @@ export default function TreePage() {
         <Background />
         <Controls />
       </ReactFlow>
+      {quizNode?.quiz && (
+        <QuizModal
+          nodeLabel={quizNode.title ?? quizNode.name ?? quizNode.id}
+          quiz={quizNode.quiz}
+          submitting={quizSubmitting}
+          result={quizResult}
+          error={quizError}
+          onSubmit={(answers) => submitQuiz(quizNode.id, answers)}
+          onClose={closeQuiz}
+        />
+      )}
     </main>
   );
 }
