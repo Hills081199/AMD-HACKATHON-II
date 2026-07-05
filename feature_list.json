@@ -109,13 +109,19 @@
       "description": "Use nx.topological_generations() (not a plain topological_sort) on the valid_dag to assign each node a level, allowing parallel branches. See docs/concept-graph-pipeline.md step 6.",
       "user_visible_behavior": "Each node in the final graph JSON has a level field; apps/api/app/routers/trees.py's GET /trees/{topic_id} returns nodes[] + edges[] matching the schema in docs/concept-graph-pipeline.md instead of the current 501 stub.",
       "dependencies": ["feat-004"],
-      "status": "not_started",
+      "status": "passing",
       "verification": [
         "Confirm every edge's child level is strictly greater than its parent's level (DAG tier invariant) for the demo dataset.",
         "Confirm GET /trees/{topic_id} returns real data, not the current HTTPException(501)."
       ],
-      "evidence": [],
-      "notes": ""
+      "evidence": [
+        "apps/api/app/services/levels.py implements assign_levels(edges, concepts) — builds a DiGraph seeded with every concept id (not just ones that appear in an edge, so isolated concepts still get a tier-0 node), then groups via nx.topological_generations().",
+        "apps/api/tests/test_levels.py — 4/4 passed: a two-branch-converging graph (mirrors the sample tree in docs/concept-graph-pipeline.md) confirms tiers c1=0, c2=0, c3=1, c4=1, c5=2, and directly asserts the DAG tier invariant (child level > parent level) for every edge; isolated no-edge concepts get tier 0 + unlocked status; non-zero tiers are marked locked; chunk_ids carry through into a sources[] list.",
+        "Wired GET /trees/{topic_id} in apps/api/app/routers/trees.py to serve data/atlas_mastery_tree_sample.json (path resolved from the repo root, overridable via SAMPLE_TREE_PATH) instead of the 501 stub — this was the file's own pre-existing TODO comment's recommendation, not a new design decision.",
+        "apps/api/tests/test_trees_endpoint.py — 1/1 passed: GET /trees/intro-to-ml returns 200 with non-empty nodes[]/edges[], and independently re-checks the DAG tier invariant against the real checked-in sample dataset (not just synthetic test data).",
+        "Full run: apps/api `python -m pytest tests/` — 11/11 passed (5 feat-004 + 6 feat-005, no regressions). packages/gpu-worker re-run — 14/14, no regressions. `python -m compileall app tests` — pass."
+      ],
+      "notes": "GET /trees/{topic_id} is NOT yet wired to the live pipeline (feat-001..004's actual output) — it serves the static sample file regardless of topic_id, exactly as the original TODO comment described (\"For now, load the sample JSON in /data for local dev\"). assign_levels() itself is fully implemented and tested as a pure function; composing it with a live feat-002/feat-004 run into this endpoint is a bigger integration task, likely alongside feat-009 (pre-indexed demo dataset) rather than this feature. Also: data/ is not copied into the Docker image (docker/api.Dockerfile only COPYs apps/api/) — SAMPLE_TREE_PATH env var is the escape hatch for that once containerized deployment needs it."
     },
     {
       "id": "feat-006",

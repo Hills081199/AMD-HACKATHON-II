@@ -4,12 +4,12 @@
 
 - Last Updated: 2026-07-05
 - Repository root: D:\AMD-HACKATHON-II
-- Current Objective: Build the concept-dependency-graph pipeline end to end (feat-001 → feat-009 in `feature_list.json`). feat-001 through feat-004 are now passing; feat-005 (topological sort → tiered learning path) is next, in `apps/api`.
+- Current Objective: Build the concept-dependency-graph pipeline end to end (feat-001 → feat-009 in `feature_list.json`). feat-001 through feat-005 are now passing; feat-006 (skill-tree UI with unlock logic) is next, in `apps/web`.
 - Standard startup path: `./init.sh`
-- Standard verification path: see "Verification Commands" in `CLAUDE.md` — web lint/build, api/gpu-worker `compileall`, `cd apps/api && python -m pytest tests/` (6/6 passing), and `cd packages/gpu-worker && python -m pytest tests/` (14/14 passing).
-- Highest-priority unfinished feature: feat-005, "Topological sort → tiered learning path"
-- Blockers: none currently. Day-1 risk flagged in `docs/hackathon-scope.md` §5: verify ROCm/PyTorch compatibility on the AMD Developer Cloud box before relying on it. feat-002/feat-003 were verified with fakes (no live Gemma/Ollama server, model download, or Fireworks API key) — worth a real-infra pass once ROCm and Fireworks credentials are provisioned.
-- Recommended Next Step: in `apps/api`, use `nx.topological_generations()` (not a plain `topological_sort`) on feat-004's `valid_dag` to assign each node a `level`, then wire `GET /trees/{topic_id}` to return real `nodes[]`/`edges[]` instead of its current 501 stub — see docs/concept-graph-pipeline.md step 6.
+- Standard verification path: see "Verification Commands" in `CLAUDE.md` — web lint/build, api/gpu-worker `compileall`, `cd apps/api && python -m pytest tests/` (11/11 passing), and `cd packages/gpu-worker && python -m pytest tests/` (14/14 passing).
+- Highest-priority unfinished feature: feat-006, "Skill-tree UI with unlock logic"
+- Blockers: none currently. Day-1 risk flagged in `docs/hackathon-scope.md` §5: verify ROCm/PyTorch compatibility on the AMD Developer Cloud box before relying on it. feat-002/feat-003 were verified with fakes (no live Gemma/Ollama server, model download, or Fireworks API key) — worth a real-infra pass once ROCm and Fireworks credentials are provisioned. `apps/web`'s `node_modules` still isn't installed — that blocks feat-006 from being lint/build-verified until it's installed.
+- Recommended Next Step: in `apps/web/app/tree/page.tsx`, fetch `data/atlas_mastery_tree_sample.json` (dev) or `GET {NEXT_PUBLIC_API_URL}/trees/{topic_id}` and render nodes/edges with `@xyflow/react`, grouped into columns by `level` and colored by `status`, with a node unlocking when all its incoming edges are `mastered`/`completed` (note: the sample dataset uses `"completed"`, not `"mastered"` — docs/concept-graph-pipeline.md's schema says `mastered`, a naming mismatch worth reconciling when this gets built).
 
 ## Session Log
 
@@ -78,3 +78,15 @@
 - Files or artifacts updated: `apps/api/app/services/__init__.py` (new), `apps/api/app/services/graph.py` (new), `apps/api/app/routers/graph.py` (new), `apps/api/app/main.py`, `apps/api/requirements-dev.txt` (new), `apps/api/tests/__init__.py` (new), `apps/api/tests/test_graph.py` (new), `apps/api/tests/test_graph_endpoint.py` (new), `init.sh`, `CLAUDE.md`, `feature_list.json`.
 - Known risk or unresolved issue: `nx.simple_cycles()` is exponential in the worst case — fine for the hackathon's sparse, pre-filtered graphs, but worth watching if the real demo dataset ends up much larger/denser than expected. Not yet run on a real candidate-edge set from a live feat-003 run (Fireworks) — only synthetic edge lists in tests.
 - Next best step: implement feat-005 (topological sort via `nx.topological_generations()`, tier assignment) in `apps/api`, and wire `GET /trees/{topic_id}` to return real data instead of its 501 stub.
+
+### Session 006
+
+- Date: 2026-07-05
+- Goal: Implement feat-005, "Topological sort → tiered learning path."
+- Completed: Added `apps/api/app/services/levels.py` — `assign_levels(edges, concepts)` builds a `DiGraph` seeded with every concept `id` (not just ones with an edge, so isolated concepts still get a node), groups via `nx.topological_generations()`, and returns `nodes[]` with `id`/`name`/`level`/`sources`/`status` (tier 0 = unlocked, everything else = locked). Wired `GET /trees/{topic_id}` in `apps/api/app/routers/trees.py` to serve `data/atlas_mastery_tree_sample.json` (path resolved from repo root, overridable via `SAMPLE_TREE_PATH`) instead of its `HTTPException(501)` — this was literally the file's own pre-existing TODO comment's recommendation, not a new call.
+- Verification run: `python -m compileall app tests` (pass); `python -m pytest tests/` in `apps/api` — 11/11 passed (5 feat-004 + 6 feat-005, no regressions). Re-ran `packages/gpu-worker`'s suite — 14/14, no regressions.
+- Evidence captured: recorded in `feature_list.json` feat-005 `evidence[]`, including a test that mirrors docs/concept-graph-pipeline.md's own sample tree (two branches converging) and directly asserts the DAG tier invariant, plus an endpoint test that re-checks that invariant against the real checked-in sample dataset (not just synthetic test data).
+- Commits: not yet committed this session.
+- Files or artifacts updated: `apps/api/app/services/levels.py` (new), `apps/api/app/routers/trees.py`, `apps/api/tests/test_levels.py` (new), `apps/api/tests/test_trees_endpoint.py` (new), `feature_list.json`, `progress.md`.
+- Known risk or unresolved issue: `GET /trees/{topic_id}` is explicitly NOT wired to the live pipeline yet — it serves the static sample file regardless of `topic_id`; composing a real feat-002→feat-005 run into this endpoint is a bigger integration task, likely alongside feat-009. `data/` isn't copied into the Docker image (`docker/api.Dockerfile` only `COPY`s `apps/api/`) — `SAMPLE_TREE_PATH` is the escape hatch, not yet used. Also noticed while reading the sample dataset: it uses `"completed"` for a mastered node's status, while `docs/concept-graph-pipeline.md`'s schema says `"mastered"` — a naming mismatch to reconcile when feat-006/008 build the real unlock mechanic.
+- Next best step: implement feat-006 (skill-tree UI with unlock logic) in `apps/web`, replacing the `TODO: render mastery tree` placeholder in `app/tree/page.tsx`. Requires `npm install` in `apps/web` first (node_modules still not installed as of this session).
