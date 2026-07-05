@@ -17,15 +17,29 @@ pretending to be real pipeline output is exactly what feat-009 replaces. For
 a version exercised with fakes (to verify this script's own orchestration
 logic, not the pipeline's judgment calls), see scripts/tests/test_build_demo_dataset.py.
 
+Prototyping-only alternative: set LLM_PROVIDER=openai and OPENAI_API_KEY to
+run this same pipeline against GPT-4o mini + text-embedding-3-small instead,
+to validate the wiring before real ROCm/Gemma/Fireworks infra exists (see
+docs/hackathon-scope.md §5). If doing so, also consider raising
+--prereq-similarity-threshold (try 0.6) — the 0.35 default was implicitly
+tuned for bge-large-en-v1.5's cosine-similarity distribution, and a live run
+found it lets through ~6x more candidate pairs than expected against
+OpenAI's text-embedding-3-small, which is correct but needlessly slow/costly.
+
 Usage:
     GEMMA_BASE_URL=http://localhost:11434 FIREWORKS_API_KEY=... \\
         python scripts/build_demo_dataset.py
+
+    # or, prototyping against OpenAI:
+    LLM_PROVIDER=openai OPENAI_API_KEY=... \\
+        python scripts/build_demo_dataset.py --prereq-similarity-threshold 0.6
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from datetime import datetime, timezone
@@ -37,6 +51,8 @@ sys.path.insert(0, str(_REPO_ROOT / "apps" / "api"))
 
 from worker.concepts import (  # noqa: E402
     GemmaConceptExtractor,
+    OpenAIConceptExtractor,
+    OpenAIEmbedder,
     SentenceTransformerEmbedder,
     cluster_concepts,
     extract_raw_concepts,
@@ -72,17 +88,27 @@ def build_dataset(
     embedder,
     fireworks_infer,
     fireworks_teach,
+    prereq_similarity_threshold: float = 0.35,
 ) -> dict:
     """Compose feat-001's chunks[] through feat-007's per-node lesson
     packages into one final tree JSON, matching the schema in
     docs/concept-graph-pipeline.md. Every step here calls the same,
     already-unit-tested functions the live services use — this function
-    only assembles their outputs."""
+    only assembles their outputs.
+
+    prereq_similarity_threshold's default (0.35) was implicitly tuned for
+    bge-large-en-v1.5's cosine-similarity distribution — a live run found
+    it lets through far more candidate pairs than expected against OpenAI's
+    text-embedding-3-small (17% of all possible pairs vs. a handful),
+    correct but needlessly slow/costly. Pass a higher value (e.g. 0.6) when
+    using an embedding backend this wasn't tuned for."""
     raw_concepts = extract_raw_concepts(chunks, gemma)
     canonical_concepts = cluster_concepts(raw_concepts, embedder)
     concept_dicts = [concept.to_dict() for concept in canonical_concepts]
 
-    candidate_edges = build_candidate_edges(concept_dicts, fireworks_infer)
+    candidate_edges = build_candidate_edges(
+        concept_dicts, fireworks_infer, similarity_threshold=prereq_similarity_threshold
+    )
     validated = validate_graph(candidate_edges)
     leveled_nodes = assign_levels(validated["edges"], concept_dicts)
 
@@ -170,25 +196,47 @@ def main() -> None:
     parser.add_argument("--docs-dir", default=str(_DEFAULT_DOCS_DIR), help="Directory of PDF/PPTX/DOCX source docs")
     parser.add_argument("--topic", default="Introduction to Machine Learning")
     parser.add_argument("--output", default=str(_DEFAULT_OUTPUT))
+    parser.add_argument(
+        "--prereq-similarity-threshold",
+        type=float,
+        default=0.35,
+        help="See build_dataset()'s docstring — try 0.6 when using LLM_PROVIDER=openai.",
+    )
     args = parser.parse_args()
 
-    import os
+    use_openai = os.environ.get("LLM_PROVIDER", "").lower() == "openai"
 
-    gemma_base_url = os.environ.get("GEMMA_BASE_URL")
-    fireworks_api_key = os.environ.get("FIREWORKS_API_KEY")
-    if not gemma_base_url:
-        raise SystemExit(
-            "GEMMA_BASE_URL is not set. This script needs a real local Gemma/Ollama "
-            "server for concept extraction (docs/hackathon-scope.md §5) — refusing to "
-            "substitute fake output, since feat-009 exists to replace a hand-written "
-            "placeholder, not produce a different kind of one."
-        )
-    if not fireworks_api_key:
-        raise SystemExit(
-            "FIREWORKS_API_KEY is not set. Required for prerequisite inference "
-            "(step 4) and lesson/quiz/example generation (step 7) — refusing to "
-            "substitute fake output."
-        )
+    if use_openai:
+        if not os.environ.get("OPENAI_API_KEY"):
+            raise SystemExit(
+                "LLM_PROVIDER=openai but OPENAI_API_KEY is not set. Refusing to "
+                "substitute fake output for the real run."
+            )
+        gemma = OpenAIConceptExtractor()
+        embedder = OpenAIEmbedder()
+        fireworks_infer = PrerequisiteFireworksClient()
+        fireworks_teach = TeachFireworksClient()
+    else:
+        gemma_base_url = os.environ.get("GEMMA_BASE_URL")
+        fireworks_api_key = os.environ.get("FIREWORKS_API_KEY")
+        if not gemma_base_url:
+            raise SystemExit(
+                "GEMMA_BASE_URL is not set. This script needs a real local Gemma/Ollama "
+                "server for concept extraction (docs/hackathon-scope.md §5) — refusing to "
+                "substitute fake output, since feat-009 exists to replace a hand-written "
+                "placeholder, not produce a different kind of one. (Set LLM_PROVIDER=openai "
+                "instead to prototype against GPT-4o mini — see this script's docstring.)"
+            )
+        if not fireworks_api_key:
+            raise SystemExit(
+                "FIREWORKS_API_KEY is not set. Required for prerequisite inference "
+                "(step 4) and lesson/quiz/example generation (step 7) — refusing to "
+                "substitute fake output."
+            )
+        gemma = GemmaConceptExtractor(base_url=gemma_base_url)
+        embedder = SentenceTransformerEmbedder()
+        fireworks_infer = PrerequisiteFireworksClient(api_key=fireworks_api_key)
+        fireworks_teach = TeachFireworksClient(api_key=fireworks_api_key)
 
     docs_dir = Path(args.docs_dir)
     chunks: list[Chunk] = []
@@ -200,10 +248,11 @@ def main() -> None:
     dataset = build_dataset(
         chunks,
         topic=args.topic,
-        gemma=GemmaConceptExtractor(base_url=gemma_base_url),
-        embedder=SentenceTransformerEmbedder(),
-        fireworks_infer=PrerequisiteFireworksClient(api_key=fireworks_api_key),
-        fireworks_teach=TeachFireworksClient(api_key=fireworks_api_key),
+        gemma=gemma,
+        embedder=embedder,
+        fireworks_infer=fireworks_infer,
+        fireworks_teach=fireworks_teach,
+        prereq_similarity_threshold=args.prereq_similarity_threshold,
     )
 
     output_path = Path(args.output)

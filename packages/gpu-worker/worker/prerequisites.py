@@ -27,13 +27,24 @@ class FireworksClient:
         model: str | None = None,
         timeout: float = 30.0,
     ):
-        self.api_key = api_key or os.environ.get("FIREWORKS_API_KEY", "")
-        self.base_url = (
-            base_url or os.environ.get("FIREWORKS_BASE_URL", "https://api.fireworks.ai/inference/v1")
-        ).rstrip("/")
-        self.model = model or os.environ.get(
-            "FIREWORKS_MODEL", "accounts/fireworks/models/llama-v3p1-8b-instruct"
-        )
+        # LLM_PROVIDER=openai is a prototyping-only switch (see
+        # docs/hackathon-scope.md §5) to validate this step against GPT-4o
+        # mini before a real Fireworks account is provisioned — safe because
+        # Fireworks' API is itself OpenAI-compatible, so no request-shape
+        # changes are needed, only which credentials/base_url get used.
+        use_openai = os.environ.get("LLM_PROVIDER", "").lower() == "openai"
+        if use_openai:
+            self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
+            self.base_url = (base_url or os.environ.get("OPENAI_BASE_URL") or "https://api.openai.com/v1").rstrip("/")
+            self.model = model or os.environ.get("OPENAI_MODEL") or "gpt-4o-mini"
+        else:
+            self.api_key = api_key or os.environ.get("FIREWORKS_API_KEY", "")
+            self.base_url = (
+                base_url or os.environ.get("FIREWORKS_BASE_URL", "https://api.fireworks.ai/inference/v1")
+            ).rstrip("/")
+            self.model = model or os.environ.get(
+                "FIREWORKS_MODEL", "accounts/fireworks/models/llama-v3p1-8b-instruct"
+            )
         self.timeout = timeout
 
     def infer_direction(self, concept_a: dict, concept_b: dict) -> dict:

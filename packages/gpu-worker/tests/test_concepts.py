@@ -10,7 +10,14 @@ import json as json_module
 
 import numpy as np
 
-from worker.concepts import GemmaConceptExtractor, RawConcept, cluster_concepts, extract_raw_concepts
+from worker.concepts import (
+    GemmaConceptExtractor,
+    OpenAIConceptExtractor,
+    OpenAIEmbedder,
+    RawConcept,
+    cluster_concepts,
+    extract_raw_concepts,
+)
 from worker.ingest import Chunk
 
 
@@ -91,3 +98,81 @@ def test_cluster_concepts_merges_near_duplicate_phrasings():
 
 def test_cluster_concepts_empty_input_returns_empty_list():
     assert cluster_concepts([], _fake_embed) == []
+
+
+def test_openai_concept_extractor_posts_to_chat_completions_and_parses_concepts(monkeypatch):
+    # Prototyping-only path (LLM_PROVIDER=openai) — see worker/main.py.
+    # Confirms it hits OpenAI's chat-completions shape (not Ollama's
+    # /api/generate), and unwraps the {"concepts": [...]} envelope the
+    # prompt asks for (JSON mode requires a top-level object, not a bare
+    # list, unlike GemmaConceptExtractor's Ollama-style "format": "json").
+    captured = {}
+
+    class _FakeResponse:
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> dict:
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": json_module.dumps(
+                                {"concepts": [{"name": "Derivatives", "definition": "Rate of change."}]}
+                            )
+                        }
+                    }
+                ]
+            }
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        captured["url"] = url
+        captured["headers"] = headers
+        captured["json"] = json
+        return _FakeResponse()
+
+    monkeypatch.setattr("httpx.post", fake_post)
+
+    extractor = OpenAIConceptExtractor(api_key="test-key", model="gpt-4o-mini")
+    chunk = Chunk(doc_id="d.pdf", chunk_id="d.pdf:p1", page=1, text="Derivatives measure rate of change.")
+
+    concepts = extractor.extract(chunk)
+
+    assert captured["url"] == "https://api.openai.com/v1/chat/completions"
+    assert captured["headers"]["Authorization"] == "Bearer test-key"
+    assert captured["json"]["response_format"] == {"type": "json_object"}
+    assert concepts == [RawConcept(name="Derivatives", definition="Rate of change.", chunk_id="d.pdf:p1")]
+
+
+def test_openai_embedder_posts_to_embeddings_endpoint_and_preserves_order(monkeypatch):
+    captured = {}
+
+    class _FakeResponse:
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> dict:
+            # Deliberately returned out of order — the client must sort by
+            # "index" before returning, since callers rely on output order
+            # matching input order (e.g. cluster_concepts zips vectors back
+            # to raw_concepts positionally).
+            return {
+                "data": [
+                    {"index": 1, "embedding": [0.0, 1.0]},
+                    {"index": 0, "embedding": [1.0, 0.0]},
+                ]
+            }
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        captured["url"] = url
+        captured["json"] = json
+        return _FakeResponse()
+
+    monkeypatch.setattr("httpx.post", fake_post)
+
+    embedder = OpenAIEmbedder(api_key="test-key", model="text-embedding-3-small")
+    vectors = embedder(["first", "second"])
+
+    assert captured["url"] == "https://api.openai.com/v1/embeddings"
+    assert captured["json"] == {"model": "text-embedding-3-small", "input": ["first", "second"]}
+    assert vectors.tolist() == [[1.0, 0.0], [0.0, 1.0]]

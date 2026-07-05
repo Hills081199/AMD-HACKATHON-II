@@ -6,6 +6,7 @@ See docs/concept-graph-pipeline.md steps 2-3.
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 
 import networkx as nx
@@ -71,6 +72,76 @@ class GemmaConceptExtractor:
             RawConcept(name=item["name"], definition=item.get("definition", ""), chunk_id=chunk.chunk_id)
             for item in items
         ]
+
+
+class OpenAIConceptExtractor:
+    """Prototyping-only stand-in for GemmaConceptExtractor, used to validate
+    the end-to-end pipeline against a hosted model (GPT-4o mini) before
+    real ROCm/Gemma infrastructure is available — see
+    docs/hackathon-scope.md §5's Day-1 risk note. Selected via
+    LLM_PROVIDER=openai in worker/main.py's get_gemma_extractor(); do not use
+    this for the actual submission (see GemmaConceptExtractor's docstring
+    for why local Gemma inference is required for judging, not just this
+    step's own correctness)."""
+
+    def __init__(self, api_key: str | None = None, base_url: str | None = None, model: str | None = None, timeout: float = 30.0):
+        self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
+        self.base_url = (base_url or os.environ.get("OPENAI_BASE_URL") or "https://api.openai.com/v1").rstrip("/")
+        self.model = model or os.environ.get("OPENAI_MODEL") or "gpt-4o-mini"
+        self.timeout = timeout
+
+    def extract(self, chunk: Chunk) -> list[RawConcept]:
+        import httpx
+
+        prompt = (
+            "List the distinct learning concepts this text teaches. Respond "
+            "with strict JSON only: {\"concepts\": [{\"name\": <short "
+            "canonical name>, \"definition\": <one sentence>}, ...]}.\n\n"
+            "Text:\n\n" + chunk.text
+        )
+        response = httpx.post(
+            f"{self.base_url}/chat/completions",
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            json={
+                "model": self.model,
+                "messages": [{"role": "user", "content": prompt}],
+                "response_format": {"type": "json_object"},
+            },
+            timeout=self.timeout,
+        )
+        response.raise_for_status()
+        content = response.json()["choices"][0]["message"]["content"]
+        items = json.loads(content).get("concepts", [])
+        return [
+            RawConcept(name=item["name"], definition=item.get("definition", ""), chunk_id=chunk.chunk_id)
+            for item in items
+        ]
+
+
+class OpenAIEmbedder:
+    """Prototyping-only stand-in for SentenceTransformerEmbedder — avoids a
+    ~1.3GB bge-large model download when validating the pipeline against a
+    hosted API. Selected via LLM_PROVIDER=openai in worker/main.py's
+    get_embedder()."""
+
+    def __init__(self, api_key: str | None = None, base_url: str | None = None, model: str | None = None, timeout: float = 30.0):
+        self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
+        self.base_url = (base_url or os.environ.get("OPENAI_BASE_URL") or "https://api.openai.com/v1").rstrip("/")
+        self.model = model or os.environ.get("OPENAI_EMBEDDING_MODEL") or "text-embedding-3-small"
+        self.timeout = timeout
+
+    def __call__(self, texts: list[str]) -> np.ndarray:
+        import httpx
+
+        response = httpx.post(
+            f"{self.base_url}/embeddings",
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            json={"model": self.model, "input": texts},
+            timeout=self.timeout,
+        )
+        response.raise_for_status()
+        data = sorted(response.json()["data"], key=lambda item: item["index"])
+        return np.asarray([item["embedding"] for item in data])
 
 
 class SentenceTransformerEmbedder:

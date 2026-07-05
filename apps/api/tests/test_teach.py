@@ -1,7 +1,7 @@
 """Tests for pipeline step 7, per-node lesson + quiz + real-world example
 (agentic RAG) — see docs/concept-graph-pipeline.md's Teach stage."""
 
-from app.services.teach import generate_lesson_package
+from app.services.teach import FireworksClient, generate_lesson_package
 
 
 class FakeFireworks:
@@ -85,3 +85,30 @@ def test_generate_lesson_package_flags_unpassed_self_check_after_exhausting_atte
     assert len(fireworks.generate_calls) == 2
     assert result["self_check"] == {"passed": False, "attempts": 2}
     assert result["lesson"] == "Lesson v2 about Gradient Descent."
+
+
+def test_fireworks_client_defaults_to_fireworks_when_llm_provider_unset(monkeypatch):
+    monkeypatch.delenv("LLM_PROVIDER", raising=False)
+    monkeypatch.setenv("FIREWORKS_API_KEY", "fw-key")
+
+    client = FireworksClient()
+
+    assert client.base_url == "https://api.fireworks.ai/inference/v1"
+    assert client.model == "accounts/fireworks/models/llama-v3p1-8b-instruct"
+    assert client.api_key == "fw-key"
+
+
+def test_fireworks_client_switches_to_openai_when_llm_provider_is_openai(monkeypatch):
+    # Prototyping-only switch (docs/hackathon-scope.md §5) to validate this
+    # step against GPT-4o mini before a real Fireworks account exists —
+    # safe because Fireworks' API is itself OpenAI-compatible, so only the
+    # credentials/base_url/model need to change, not the request shape.
+    monkeypatch.setenv("LLM_PROVIDER", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.delenv("OPENAI_MODEL", raising=False)
+
+    client = FireworksClient()
+
+    assert client.base_url == "https://api.openai.com/v1"
+    assert client.model == "gpt-4o-mini"
+    assert client.api_key == "sk-test"
