@@ -19,6 +19,16 @@ lesson/quiz generation, agentic self-checks) run on Fireworks AI. This keeps
 the GPU busy with what GPUs are good at, and keeps reasoning on a fast hosted
 LLM API — a genuine hybrid split rather than one remote API call end to end.
 
+Concretely: **Gemma (2B/7B)** is served locally via vLLM-ROCm/Ollama on the
+AMD GPU for concept extraction/tagging — this is the piece of the stack that
+puts actual LLM inference on AMD hardware, not just embeddings. **Fireworks
+AI (Llama 3.x)** handles prerequisite inference and lesson/quiz generation,
+where hosted low-latency reasoning matters more than GPU locality. See
+[`concept-graph-pipeline.md`](concept-graph-pipeline.md) for the full 6-step
+breakdown of the Understand/Structure stages, and
+[`hackathon-scope.md`](hackathon-scope.md) for the tech-stack rationale and
+7-day build plan.
+
 ## Data contract between services
 
 - `gpu-worker` produces a candidate graph (nodes + inferred prerequisite
