@@ -16,10 +16,14 @@ router = APIRouter()
 # shape the frontend should expect." Not copied into the Docker image yet
 # (see docker/api.Dockerfile) — override via SAMPLE_TREE_PATH once that's
 # wired up for a containerized deployment.
-_REPO_ROOT = Path(__file__).resolve().parents[4]
-_SAMPLE_TREE_PATH = Path(
-    os.environ.get("SAMPLE_TREE_PATH", str(_REPO_ROOT / "data" / "atlas_mastery_tree_sample.json"))
-)
+if "SAMPLE_TREE_PATH" in os.environ:
+    _SAMPLE_TREE_PATH = Path(os.environ["SAMPLE_TREE_PATH"])
+else:
+    try:
+        _REPO_ROOT = Path(__file__).resolve().parents[4]
+        _SAMPLE_TREE_PATH = _REPO_ROOT / "data" / "atlas_mastery_tree_sample.json"
+    except IndexError:
+        _SAMPLE_TREE_PATH = Path("/data/atlas_mastery_tree_sample.json")
 
 
 def _load_tree(topic_id: str) -> dict:

@@ -16,6 +16,11 @@ services:
     ports:
       - "8000:8000"
     env_file: .env
+    volumes:
+      - ./data:/data
+      - ./apps/api:/app
+    environment:
+      - SAMPLE_TREE_PATH=/data/atlas_mastery_tree_sample.json
     depends_on:
       - gpu-worker
 
@@ -26,8 +31,12 @@ services:
     ports:
       - "8100:8100"
     env_file: .env
-    devices:
-      - /dev/kfd
-      - /dev/dri
-    group_add:
-      - video
+    # AMD ROCm device mounts — only available on Linux hosts with ROCm drivers.
+    # On Windows/macOS dev machines (or when LLM_PROVIDER=openai), comment
+    # these three lines out so Docker Desktop doesn't error on missing /dev/kfd.
+    # Uncomment for actual AMD GPU submission hardware:
+    # devices:
+    #   - /dev/kfd
+    #   - /dev/dri
+    # group_add:
+    #   - video
