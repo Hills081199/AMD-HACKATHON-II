@@ -45,6 +45,9 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from dotenv import load_dotenv
+load_dotenv()
+
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_REPO_ROOT / "packages" / "gpu-worker"))
 sys.path.insert(0, str(_REPO_ROOT / "apps" / "api"))
@@ -102,15 +105,30 @@ def build_dataset(
     text-embedding-3-small (17% of all possible pairs vs. a handful),
     correct but needlessly slow/costly. Pass a higher value (e.g. 0.6) when
     using an embedding backend this wasn't tuned for."""
+    print(f"\n[Step 1] Received {len(chunks)} chunks from source documents.")
+    print("[Step 2] Extracting raw concepts via LLM...")
     raw_concepts = extract_raw_concepts(chunks, gemma)
+    print(f"  -> Extracted {len(raw_concepts)} raw concepts.")
+
+    print("[Step 3] Clustering and deduping concepts...")
     canonical_concepts = cluster_concepts(raw_concepts, embedder)
     concept_dicts = [concept.to_dict() for concept in canonical_concepts]
+    print(f"  -> Reduced to {len(concept_dicts)} canonical concepts.")
 
+    print("[Step 4] Inferring prerequisite edges via LLM...")
     candidate_edges = build_candidate_edges(
         concept_dicts, fireworks_infer, similarity_threshold=prereq_similarity_threshold
     )
+    print(f"  -> Found {len(candidate_edges)} candidate edges.")
+
+    print("[Step 5] Validating DAG (cycle detection)...")
     validated = validate_graph(candidate_edges)
+    print(f"  -> Dropped {len(validated['dropped_edges'])} edges to fix cycles. Valid edges: {len(validated['edges'])}.")
+
+    print("[Step 6] Assigning concept tiers/levels...")
     leveled_nodes = assign_levels(validated["edges"], concept_dicts)
+
+    print("[Step 7] Generating lessons, examples, and quizzes for each node via LLM (this may take a while)...")
 
     chunks_by_id = {chunk.chunk_id: chunk for chunk in chunks}
     prerequisites_by_id: dict[str, list[str]] = {node["id"]: [] for node in leveled_nodes}
