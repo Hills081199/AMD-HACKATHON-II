@@ -89,7 +89,7 @@ hackathon build.
 - How will user progress and spaced-repetition state be persisted across
   sessions and devices? **Resolved for the hackathon MVP:** there is no
   multi-user account system or cross-device sync in the MVP (see §7.1b) —
-  node status (`locked`/`unlocked`/`mastered`) is held in local/session
+  node status (`locked`/`unlocked`/`completed`) is held in local/session
   state against the single pre-indexed demo dataset. Durable, cross-device
   progress persistence is a post-MVP concern, to be designed alongside user
   accounts.
@@ -204,12 +204,12 @@ tracked as post-MVP roadmap items (§7.1b), not part of the initial mechanic.
   validated graph into tiers, allowing parallel branches rather than one
   straight line.
 - Skill-Tree UI with Unlock Logic: Each concept is a node; a node unlocks
-  once every prerequisite node is `mastered`.
+  once every prerequisite node is `completed`.
 - Per-Node Lesson, Quiz & Real-World Example (Agentic RAG): Scoped retrieval
   over that node's source chunks only, with a self-check that the quiz
   matches the lesson before it's shown.
 - Checkpoint Quiz & Unlock Mechanic (MCQ only): Passing a node's quiz marks
-  it `mastered` and unlocks its children.
+  it `completed` and unlocks its children.
 - Pre-Indexed, Deterministic Demo Dataset: The full pipeline is run ahead of
   time on the chosen document set so the live demo doesn't depend on
   Fireworks' latency or reliability.

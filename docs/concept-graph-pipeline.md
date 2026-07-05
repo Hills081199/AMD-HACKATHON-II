@@ -34,7 +34,7 @@ demo differentiator and how it fits the 7-day build plan.
   "name": "Gradient descent",
   "level": 1,
   "sources": [{"doc_id": "calculus_notes.pdf", "page": 12, "chunk_id": "c88"}],
-  "status": "locked" // locked | unlocked | mastered
+  "status": "locked" // locked | unlocked | completed
 }
 
 // edge
@@ -44,7 +44,7 @@ demo differentiator and how it fits the 7-day build plan.
 The frontend (React Flow) only needs to read `nodes[]` + `edges[]`, group them
 into columns/tiers by `level`, and color them by `status`. The unlock logic is
 simple: a node changes from `locked` → `unlocked` when all edges pointing into
-it are already `mastered` (i.e., the learner has passed the checkpoint quiz).
+it are already `completed` (i.e., the learner has passed the checkpoint quiz).
 
 ## Sample tree — a concrete example
 
@@ -81,8 +81,8 @@ A few notes on this sample tree:
 
 **On the unlock mechanism in the UI:** at the start, all 3 Tier-0 nodes are
 unlocked. Once the learner passes the checkpoint quiz for "Linear Algebra,"
-that node becomes `mastered`; the system scans nodes with edges pointing to
-it, checks whether all of its parents are already `mastered`, and if so,
+that node becomes `completed`; the system scans nodes with edges pointing to
+it, checks whether all of its parents are already `completed`, and if so,
 unlocks it. This is precisely why the pipeline carries `confidence` and
 citation sources through end to end: they're not only needed for the
 graph-repair algorithm, but also feed the Teach layer (lesson/quiz generated

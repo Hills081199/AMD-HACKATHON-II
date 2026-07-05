@@ -2,31 +2,32 @@
 
 ## Verified Now
 
-- What is currently working: the full "produce a tree" chain (feat-001 → feat-005) is implemented. `packages/gpu-worker`: `POST /ingest`, `POST /embed`, `POST /build-graph`. `apps/api`: `POST /graph/validate` (cycle repair), `apps/api/app/services/levels.py`'s `assign_levels()` (tiering, fully tested as a pure function), and `GET /trees/{topic_id}` now returns 200 with real tree data — but from the static sample file (`data/atlas_mastery_tree_sample.json`), not yet from a live run of the pipeline. `submit-quiz` still 501s (feat-008). `apps/web` is still placeholder pages (feat-006 is next).
-- What verification actually ran: `cd apps/api && python -m pytest tests/` — 11/11 passed. `cd packages/gpu-worker && python -m pytest tests/` — 14/14 passed (regression check, unaffected by this session's changes). `python -m compileall app tests` in `apps/api` — pass. Did **not** run the full `./init.sh` (web deps still need `npm install`).
+- What is currently working: the full loop from documents to a playable tree exists end to end for the static sample dataset. `apps/web/app/tree/page.tsx` fetches `GET {NEXT_PUBLIC_API_URL}/trees/{topic_id}`, renders the mastery tree via `@xyflow/react`, colors nodes by derived status (locked/unlocked/completed), and unlocks children live when a node is clicked-complete — verified visually via a real headless-browser session, not just typecheck. `apps/api`: `POST /graph/validate`, `assign_levels()`, `GET /trees/{topic_id}` (static sample). `packages/gpu-worker`: `POST /ingest`, `POST /embed`, `POST /build-graph`. `submit-quiz` still 501s (feat-008); no lesson/quiz/example generation yet (feat-007).
+- What verification actually ran: `npm run lint` / `npm run build` in `apps/web` (both clean). `cd apps/api && python -m pytest tests/` — 11/11. `cd packages/gpu-worker && python -m pytest tests/` — 14/14 (regression check, unaffected by this frontend-only session). Additionally: started both `apps/api` and `apps/web` in the background, drove a real Chromium session (Playwright, installed temporarily then removed) against `/tree`, and visually confirmed correct rendering and the click-to-unlock interaction via screenshots, with zero browser console errors.
 
 ## Changed This Session
 
-- Code or behavior added: `apps/api/app/services/levels.py` (`assign_levels`); `GET /trees/{topic_id}` in `apps/api/app/routers/trees.py` now serves the sample dataset instead of raising 501.
-- Infrastructure or harness changes: none new (reused `apps/api`'s existing test setup from feat-004).
-- Files modified: `apps/api/app/services/levels.py` (new), `apps/api/app/routers/trees.py`, `apps/api/tests/test_levels.py` (new), `apps/api/tests/test_trees_endpoint.py` (new), `feature_list.json`, `progress.md`.
+- Code or behavior added: `apps/web/app/tree/types.ts`, `unlock.ts`, `positions.ts` (renamed from `layout.ts`), `progressStore.ts`, `TreeNode.tsx`, `page.tsx` — the full skill-tree view.
+- Infrastructure or harness changes: ran `npm install` in `apps/web` (411 packages; `next@14.2.5` has a known security advisory per npm's own warning — not addressed, flagging for a deliberate decision later rather than an incidental bump).
+- Also fixed: a file named `app/tree/layout.ts` collides with Next.js App Router's reserved `layout.ts` convention — the build failed with a cryptic type error until renamed to `positions.ts`. Also fixed a terminology mismatch flagged in the previous handoff — `docs/concept-graph-pipeline.md` and `docs/brd.md` said a completed node's status is `"mastered"`, but `apps/web/tailwind.config.ts`'s actual color palette (`locked`/`unlocked`/`completed`) and the sample dataset both use `"completed"` — updated both docs (3 occurrences) to match the code, since the docs were the stale ones.
+- Files modified: `apps/web/app/tree/*` (see above), `docs/concept-graph-pipeline.md`, `docs/brd.md`, `feature_list.json`, `progress.md`.
 
 ## Broken Or Unverified
 
-- Known defect: none found in the new tiering code.
-- Unverified path: `GET /trees/{topic_id}` is not wired to a live pipeline run — same static file regardless of `topic_id`. `assign_levels()` has never processed a real feat-002/feat-004 output, only synthetic test fixtures. `apps/web` lint/build still unverified (node_modules not installed) — this is now a hard blocker for feat-006 being fully verified once built.
-- Blockers for the next session: `npm install` in `apps/web` is needed before feat-006 can be lint/build-verified.
+- Known defect: none found in the new tree-view code.
+- Unverified path: only manually tested against the static sample dataset (5 nodes) — not against a larger/denser tree that a real pipeline run might produce. The click-to-complete interaction is an intentional demo stand-in, not real quiz grading.
+- Blockers for the next session: none.
 
 ## Next Session
 
-- Highest-priority unfinished feature: feat-006, "Skill-tree UI with unlock logic" — lives in `apps/web/app/tree/page.tsx` (currently `TODO: render mastery tree with @xyflow/react`).
-- Why it is next: feat-005 (its only dependency) is now passing.
-- What counts as passing: fetch `data/atlas_mastery_tree_sample.json` (dev) or `GET {NEXT_PUBLIC_API_URL}/trees/{topic_id}`, render with `@xyflow/react`, group nodes into columns by `level`, color by `status`. A node unlocks when every edge pointing into it has a `mastered`/completed source status.
-- What must not change during that step: **reconcile the status-naming mismatch first** — the sample dataset uses `"completed"`, but `docs/concept-graph-pipeline.md`'s schema (and `apps/api/app/services/levels.py`'s output) uses `"locked"`/`"unlocked"` and implies `"mastered"` as the third state. Pick one vocabulary and use it consistently across the data file, the API, and the UI rather than papering over it with UI-side translation.
-- Recommended Next Step: `cd apps/web && npm install`, confirm `npm run lint`/`npm run build` pass on the current placeholder pages first (establishes a clean baseline), then implement the tree view.
+- Highest-priority unfinished feature: feat-007, "Per-node lesson + quiz + real-world example (agentic RAG)" — lives in `apps/api`.
+- Why it is next: feat-005 (its dependency) is passing; it can proceed in parallel with feat-006 conceptually, but feat-006 is now also done, so nothing blocks starting it.
+- What counts as passing: for a given node, retrieve only that node's own source chunks (via the chunk_id/doc_id carried through since feat-001), call Fireworks to generate a lesson + MCQ quiz + real-world example, with a self-check that the quiz actually matches the lesson before returning it — scoped retrieval, not whole-corpus prompting. See docs/concept-graph-pipeline.md and docs/hackathon-scope.md §3 ("Agentic RAG for lesson & quiz generation").
+- What must not change during that step: don't start feat-008's UI wiring (quiz submission, unlock-on-pass) in the same pass — feat-007 is generation-only; feat-008 consumes it. Note the click-to-complete stand-in in `apps/web/app/tree/page.tsx` will need to be replaced with a real quiz flow once feat-007+feat-008 land, not just extended.
+- Recommended Next Step: add a service (e.g. `apps/api/app/services/teach.py`) with a Fireworks-backed `generate_lesson(node, source_chunks)` function, mirroring the local-vs-hosted client pattern already used in `packages/gpu-worker/worker/prerequisites.py`, plus a self-check step and tests using fakes (no live Fireworks key needed).
 
 ## Commands
 
 - Startup: `./init.sh`
 - Verification: see `CLAUDE.md` "Verification Commands"; per-feature checks live in `feature_list.json`.
-- Focused debug command: `cd apps/api && python -m pytest tests/ -v`; `cd packages/gpu-worker && python -m pytest tests/ -v`; `uvicorn app.main:app --reload --port 8000` (from `apps/api`) to hit `GET /trees/intro-to-ml` manually.
+- Focused debug command: `cd apps/web && npm run dev` then open `http://localhost:3000/tree` (needs `apps/api` running on port 8000 too — `cd apps/api && uvicorn app.main:app --reload --port 8000`). `cd apps/api && python -m pytest tests/ -v`; `cd packages/gpu-worker && python -m pytest tests/ -v`.

@@ -131,13 +131,19 @@
       "description": "Render nodes[]/edges[] with @xyflow/react, grouped into columns by level and colored by status (locked | unlocked | mastered). A node unlocks when every edge pointing into it is mastered.",
       "user_visible_behavior": "apps/web/app/tree/page.tsx shows an interactive skill tree fetched from data/atlas_mastery_tree_sample.json (dev) or GET {NEXT_PUBLIC_API_URL}/trees/{topic_id}, replacing the current 'TODO: render mastery tree' placeholder.",
       "dependencies": ["feat-005"],
-      "status": "not_started",
+      "status": "passing",
       "verification": [
         "Load the sample tree JSON in the browser and confirm nodes render grouped by tier with correct lock/unlock coloring.",
         "Manually mark a Tier-0 node mastered and confirm its children flip from locked to unlocked without a page reload."
       ],
-      "evidence": [],
-      "notes": ""
+      "evidence": [
+        "apps/web/app/tree/{types,unlock,positions,progressStore,TreeNode,page}.{ts,tsx} implement the tree view: unlock.ts derives each node's locked/unlocked/completed status from a single source of truth (a completed-id set) plus edge structure, rather than trusting a possibly-stale status field; positions.ts lays out nodes into columns by level (not trusting a position field, since apps/api's assign_levels() output doesn't have one — only the static sample file does); progressStore.ts (zustand) holds completedIds client-side so completing a node re-renders unlocked children without a page reload; page.tsx fetches GET {NEXT_PUBLIC_API_URL}/trees/{topic_id} and renders via @xyflow/react.",
+        "Fixed a real bug during implementation: a file named services/positions.ts was originally named layout.ts, which collides with Next.js App Router's reserved `layout.ts` filename convention inside app/ and broke the build with a cryptic type error. Renamed to positions.ts.",
+        "`npm run lint` — no warnings/errors. `npm run build` — compiles and type-checks (this caught the layout.ts collision).",
+        "Manually verified live in a browser (not just typecheck/build): started apps/api (uvicorn) and apps/web (next dev), used Playwright (installed temporarily for this check) to load /tree and screenshot it. Confirmed: tier-0 nodes 'Linear Algebra Basics'/'Probability Basics' render green (completed, from the sample data's seed status), 'Loss Functions' renders blue (unlocked, both its prerequisites are already completed), 'Gradient Descent'/'Neural Networks' render grey (locked). Clicked 'Loss Functions' and confirmed it turned green and 'Gradient Descent' flipped grey->blue immediately, with 'Neural Networks' correctly still locked — no page reload, no browser console errors.",
+        "Full run: apps/api 11/11, packages/gpu-worker 14/14 — both re-checked, no regressions from this frontend-only change."
+      ],
+      "notes": "Reconciled the status-naming mismatch flagged in feat-005's handoff: tailwind.config.ts already defines `locked`/`unlocked`/`completed` colors (not `mastered`), matching the sample dataset — so the UI (and unlock.ts) uses \"completed\", and docs/concept-graph-pipeline.md's schema wording (\"mastered\") is the stale one, worth fixing there for consistency. The click-to-complete interaction is a demo-only stand-in for feat-008's real checkpoint-quiz submission — it currently \"passes\" any unlocked node on a single click with no quiz UI at all."
     },
     {
       "id": "feat-007",
