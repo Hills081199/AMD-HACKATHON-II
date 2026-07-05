@@ -13,6 +13,18 @@ export interface Quiz {
   questions: QuizQuestion[];
 }
 
+export interface NodeSource {
+  doc_id: string;
+  title?: string;
+  page?: number;
+  chunk_id?: string;
+}
+
+export interface NodeLesson {
+  summary: string;
+  real_world_example?: string;
+}
+
 export interface RawTreeNode {
   id: string;
   name?: string;
@@ -20,6 +32,8 @@ export interface RawTreeNode {
   level: number;
   status?: string;
   quiz?: Quiz;
+  lesson?: NodeLesson;
+  sources?: NodeSource[];
 }
 
 export interface TreeEdge {
