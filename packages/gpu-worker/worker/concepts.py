@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 import networkx as nx
@@ -73,6 +74,36 @@ class GemmaConceptExtractor:
             for item in items
         ]
 
+    def extract_batch(self, chunks: list[Chunk]) -> list[RawConcept]:
+        """Extract concepts from several chunks in a single LLM call.
+
+        Cuts the request count (and repeated instruction tokens) vs. one
+        call per chunk. Each text is tagged with its index so returned
+        concepts map back to the right chunk_id; a batch of one degrades to
+        the same result as extract().
+        """
+        if not chunks:
+            return []
+
+        import httpx
+
+        blocks = "\n\n".join(f"[CHUNK {i}]\n{chunk.text}" for i, chunk in enumerate(chunks))
+        prompt = (
+            "You are given several text chunks, each marked '[CHUNK i]'. For "
+            "each chunk, list the distinct learning concepts it teaches. "
+            "Return strict JSON: {\"results\": [{\"chunk_index\": <int>, "
+            "\"concepts\": [{\"name\": <short canonical name>, \"definition\": "
+            "<one sentence>}, ...]}, ...]}.\n\n" + blocks
+        )
+        response = httpx.post(
+            f"{self.base_url}/api/generate",
+            json={"model": self.model, "prompt": prompt, "format": "json", "stream": False},
+            timeout=self.timeout,
+        )
+        response.raise_for_status()
+        results = json.loads(response.json()["response"]).get("results", [])
+        return _raw_concepts_from_batch(results, chunks)
+
 
 class OpenAIConceptExtractor:
     """Prototyping-only stand-in for GemmaConceptExtractor, used to validate
@@ -116,6 +147,36 @@ class OpenAIConceptExtractor:
             RawConcept(name=item["name"], definition=item.get("definition", ""), chunk_id=chunk.chunk_id)
             for item in items
         ]
+
+    def extract_batch(self, chunks: list[Chunk]) -> list[RawConcept]:
+        """Batched counterpart to extract() — see GemmaConceptExtractor.extract_batch."""
+        if not chunks:
+            return []
+
+        import httpx
+
+        blocks = "\n\n".join(f"[CHUNK {i}]\n{chunk.text}" for i, chunk in enumerate(chunks))
+        prompt = (
+            "You are given several text chunks, each marked '[CHUNK i]'. For "
+            "each chunk, list the distinct learning concepts it teaches. "
+            "Respond with strict JSON only: {\"results\": [{\"chunk_index\": "
+            "<int>, \"concepts\": [{\"name\": <short canonical name>, "
+            "\"definition\": <one sentence>}, ...]}, ...]}.\n\n" + blocks
+        )
+        response = httpx.post(
+            f"{self.base_url}/chat/completions",
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            json={
+                "model": self.model,
+                "messages": [{"role": "user", "content": prompt}],
+                "response_format": {"type": "json_object"},
+            },
+            timeout=self.timeout,
+        )
+        response.raise_for_status()
+        content = response.json()["choices"][0]["message"]["content"]
+        results = json.loads(content).get("results", [])
+        return _raw_concepts_from_batch(results, chunks)
 
 
 class OpenAIEmbedder:
@@ -164,10 +225,74 @@ class SentenceTransformerEmbedder:
         return np.asarray(self._model.encode(texts))
 
 
-def extract_raw_concepts(chunks: list[Chunk], extractor: GemmaConceptExtractor) -> list[RawConcept]:
+def _raw_concepts_from_batch(results: list[dict], chunks: list[Chunk]) -> list[RawConcept]:
+    """Map a batched LLM response back to RawConcepts by chunk index.
+
+    Results whose chunk_index is missing or out of range are skipped rather
+    than raising, so one malformed entry doesn't lose the whole batch.
+    """
     raw: list[RawConcept] = []
-    for chunk in chunks:
-        raw.extend(extractor.extract(chunk))
+    for result in results:
+        index = result.get("chunk_index")
+        if not isinstance(index, int) or not (0 <= index < len(chunks)):
+            continue
+        chunk_id = chunks[index].chunk_id
+        for item in result.get("concepts", []):
+            raw.append(
+                RawConcept(
+                    name=item["name"],
+                    definition=item.get("definition", ""),
+                    chunk_id=chunk_id,
+                )
+            )
+    return raw
+
+
+def extract_raw_concepts(
+    chunks: list[Chunk],
+    extractor,
+    batch_size: int | None = None,
+    max_workers: int | None = None,
+) -> list[RawConcept]:
+    """Extract raw concepts from all chunks, batched and run in parallel.
+
+    Chunks are grouped into batches of `batch_size` (one LLM call each), and
+    the batches run concurrently across `max_workers` threads. This cuts both
+    the call count (batching) and wall-clock time (parallelism) vs. the old
+    one-sequential-call-per-chunk approach, with no change to the extraction
+    prompt itself. Defaults come from CONCEPT_BATCH_SIZE / CONCEPT_MAX_WORKERS
+    (5 and 4). Extractors without extract_batch fall back to per-chunk extract().
+    """
+    if not chunks:
+        return []
+
+    if batch_size is None:
+        batch_size = int(os.environ.get("CONCEPT_BATCH_SIZE", "5"))
+    if max_workers is None:
+        max_workers = int(os.environ.get("CONCEPT_MAX_WORKERS", "4"))
+    batch_size = max(1, batch_size)
+    max_workers = max(1, max_workers)
+
+    batches = [chunks[i : i + batch_size] for i in range(0, len(chunks), batch_size)]
+
+    if hasattr(extractor, "extract_batch"):
+        run = extractor.extract_batch
+    else:
+        def run(batch: list[Chunk]) -> list[RawConcept]:
+            out: list[RawConcept] = []
+            for chunk in batch:
+                out.extend(extractor.extract(chunk))
+            return out
+
+    if max_workers == 1 or len(batches) == 1:
+        batch_results = [run(batch) for batch in batches]
+    else:
+        with ThreadPoolExecutor(max_workers=min(max_workers, len(batches))) as executor:
+            batch_results = list(executor.map(run, batches))
+
+    raw: list[RawConcept] = []
+    for result in batch_results:
+        raw.extend(result)
     return raw
 
 
