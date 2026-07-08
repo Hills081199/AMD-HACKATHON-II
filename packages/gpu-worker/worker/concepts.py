@@ -171,8 +171,29 @@ def extract_raw_concepts(chunks: list[Chunk], extractor: GemmaConceptExtractor) 
     return raw
 
 
+def _compute_adaptive_threshold(
+    similarity: np.ndarray, 
+    target_percentile: float = 95.0
+) -> float:
+    """
+    Computes the threshold as the `target_percentile`-th percentile of
+    all off-diagonal similarity values. This makes the threshold adaptive
+    to the embedding model's actual output distribution.
+    """
+    n = similarity.shape[0]
+    if n < 2:
+        return 0.9
+    upper_tri = similarity[np.triu_indices(n, k=1)]
+    if upper_tri.size == 0:
+        return 0.9
+    return float(np.percentile(upper_tri, target_percentile))
+
+
 def cluster_concepts(
-    raw_concepts: list[RawConcept], embed_fn, similarity_threshold: float = 0.9
+    raw_concepts: list[RawConcept],
+    embed_fn,
+    similarity_threshold: float | None = None,
+    dedup_percentile: float = 95.0,
 ) -> list[CanonicalConcept]:
     """Merge near-duplicate raw concepts into canonical nodes.
 
@@ -189,6 +210,9 @@ def cluster_concepts(
     unit_vectors = vectors / norms
     similarity = unit_vectors @ unit_vectors.T
 
+    if similarity_threshold is None:
+        similarity_threshold = _compute_adaptive_threshold(similarity, dedup_percentile)
+
     graph = nx.Graph()
     graph.add_nodes_from(range(len(raw_concepts)))
     for i in range(len(raw_concepts)):
@@ -196,20 +220,37 @@ def cluster_concepts(
             if similarity[i, j] >= similarity_threshold:
                 graph.add_edge(i, j, weight=float(similarity[i, j]))
 
-    communities = nx.algorithms.community.louvain_communities(graph, weight="weight", seed=0)
+    total_weight = sum(d.get("weight", 1.0) for _, _, d in graph.edges(data=True))
+    if total_weight == 0 or graph.number_of_edges() == 0:
+        # No meaningful similarity edges — every concept is its own singleton.
+        # Louvain raises ZeroDivisionError on a graph with zero total edge weight.
+        communities = [{i} for i in range(len(raw_concepts))]
+    else:
+        communities = nx.algorithms.community.louvain_communities(graph, weight="weight", seed=0)
 
     canonical: list[CanonicalConcept] = []
     for community in communities:
         member_indices = sorted(community)
         members = [raw_concepts[i] for i in member_indices]
-        # Shortest name wins as the canonical label — a simple, deterministic
-        # heuristic that favors a concise phrasing (e.g. "gradient descent")
-        # over a verbose restatement of the same idea.
-        canonical_member = min(members, key=lambda concept: len(concept.name))
+        def quality_score(concept: RawConcept) -> tuple:
+            name = concept.name
+            is_acronym = name.isupper() and len(name) <= 5
+            return (
+                not is_acronym,
+                len(concept.definition),
+                -len(name),
+            )
+            
+        canonical_member = max(members, key=quality_score)
+        
         # Centroid of the cluster's unit vectors — carried through so step 4
         # (prerequisite inference) can pre-filter candidate pairs by
         # similarity without re-embedding concepts from scratch.
         centroid = unit_vectors[member_indices].mean(axis=0)
+        centroid_norm = np.linalg.norm(centroid)
+        if centroid_norm > 0:
+            centroid = centroid / centroid_norm
+
         canonical.append(
             CanonicalConcept(
                 id=f"concept_{len(canonical) + 1:03d}",

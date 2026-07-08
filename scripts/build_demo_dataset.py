@@ -92,6 +92,7 @@ def build_dataset(
     fireworks_infer,
     fireworks_teach,
     prereq_similarity_threshold: float = 0.35,
+    dedup_percentile: float = 95.0,
 ) -> dict:
     """Compose feat-001's chunks[] through feat-007's per-node lesson
     packages into one final tree JSON, matching the schema in
@@ -104,14 +105,19 @@ def build_dataset(
     it lets through far more candidate pairs than expected against OpenAI's
     text-embedding-3-small (17% of all possible pairs vs. a handful),
     correct but needlessly slow/costly. Pass a higher value (e.g. 0.6) when
-    using an embedding backend this wasn't tuned for."""
+    using an embedding backend this wasn't tuned for.
+
+    dedup_percentile controls the adaptive threshold for clustering (IMP-3.3):
+    similarity_threshold=None causes cluster_concepts() to compute the threshold
+    from the P`dedup_percentile` of the embedding distribution, making it
+    model-agnostic. Default 95.0 = top 5% most-similar pairs are near-duplicates."""
     print(f"\n[Step 1] Received {len(chunks)} chunks from source documents.")
     print("[Step 2] Extracting raw concepts via LLM...")
     raw_concepts = extract_raw_concepts(chunks, gemma)
     print(f"  -> Extracted {len(raw_concepts)} raw concepts.")
 
-    print("[Step 3] Clustering and deduping concepts...")
-    canonical_concepts = cluster_concepts(raw_concepts, embedder)
+    print(f"[Step 3] Clustering and deduping concepts (adaptive P{dedup_percentile} threshold)...")
+    canonical_concepts = cluster_concepts(raw_concepts, embedder, dedup_percentile=dedup_percentile)
     concept_dicts = [concept.to_dict() for concept in canonical_concepts]
     print(f"  -> Reduced to {len(concept_dicts)} canonical concepts.")
 
@@ -220,6 +226,17 @@ def main() -> None:
         default=0.35,
         help="See build_dataset()'s docstring — try 0.6 when using LLM_PROVIDER=openai.",
     )
+    parser.add_argument(
+        "--dedup-percentile",
+        type=float,
+        default=95.0,
+        help=(
+            "Percentile of the embedding similarity distribution used as the dedup"
+            " threshold in Step 3 (IMP-3.3). P95 (default) = top 5%% most-similar"
+            " pairs are treated as near-duplicates. Decrease to merge more aggressively;"
+            " increase to be more conservative. Model-agnostic by design."
+        ),
+    )
     args = parser.parse_args()
 
     use_openai = os.environ.get("LLM_PROVIDER", "").lower() == "openai"
@@ -271,6 +288,7 @@ def main() -> None:
         fireworks_infer=fireworks_infer,
         fireworks_teach=fireworks_teach,
         prereq_similarity_threshold=args.prereq_similarity_threshold,
+        dedup_percentile=args.dedup_percentile,
     )
 
     output_path = Path(args.output)
@@ -281,3 +299,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+# python scripts/build_demo_dataset.py --prereq-similarity-threshold 0.6

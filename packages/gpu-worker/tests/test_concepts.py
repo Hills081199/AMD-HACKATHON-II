@@ -91,7 +91,10 @@ def test_cluster_concepts_merges_near_duplicate_phrasings():
 
     assert len(canonical) == 2
     merged = next(c for c in canonical if set(c.chunk_ids) == {"c1", "c2"})
-    assert merged.name == "gradient descent"  # shorter of the two near-duplicate names wins
+    # quality_score prefers non-acronym + longer definition + shorter name;
+    # "gradient descent" has a longer definition than "the steepest-descent..."
+    # so it still wins after IMP-3.2.
+    assert merged.name == "gradient descent"
     solo = next(c for c in canonical if c.chunk_ids == ["c3"])
     assert solo.name == "linear regression"
 
@@ -176,3 +179,85 @@ def test_openai_embedder_posts_to_embeddings_endpoint_and_preserves_order(monkey
     assert captured["url"] == "https://api.openai.com/v1/embeddings"
     assert captured["json"] == {"model": "text-embedding-3-small", "input": ["first", "second"]}
     assert vectors.tolist() == [[1.0, 0.0], [0.0, 1.0]]
+
+
+# ── IMP-3.1: centroid normalization ───────────────────────────────────────────
+
+def test_centroid_is_unit_vector():
+    """IMP-3.1 — after clustering, every CanonicalConcept embedding must be a
+    unit vector so that Step 4 cosine similarity pre-filtering is correct."""
+    raw = [
+        RawConcept("gradient descent", "An iterative optimization method.", "c1"),
+        RawConcept("the steepest-descent optimization algorithm", "Iteratively moves downhill.", "c2"),
+        RawConcept("linear regression", "Fits a line to data.", "c3"),
+    ]
+    canonical = cluster_concepts(raw, _fake_embed, similarity_threshold=0.9)
+    for concept in canonical:
+        norm = sum(x ** 2 for x in concept.embedding) ** 0.5
+        assert abs(norm - 1.0) < 1e-6, f"Embedding for '{concept.name}' is not a unit vector (norm={norm})"
+
+
+# ── IMP-3.2: weighted canonical selection ─────────────────────────────────────
+
+_ACRONYM_VECTORS = {
+    "GD: An optimization algorithm.": [1.0, 0.0],
+    "Gradient Descent: An iterative optimization method that minimizes a loss function.": [0.99, 0.05],
+    "linear regression: Fits a line to data.": [0.0, 1.0],
+}
+
+
+def _fake_embed_acronym(texts: list[str]) -> np.ndarray:
+    return np.array([_ACRONYM_VECTORS[text] for text in texts])
+
+
+def test_canonical_prefers_non_acronym_over_short_name():
+    """IMP-3.2 — when an all-uppercase acronym (e.g. 'GD') and a full name
+    ('Gradient Descent') are near-duplicates, the full name must win even
+    though the acronym is shorter — the old 'min(len)' heuristic would have
+    picked 'GD'."""
+    raw = [
+        RawConcept("GD", "An optimization algorithm.", "c1"),
+        RawConcept(
+            "Gradient Descent",
+            "An iterative optimization method that minimizes a loss function.",
+            "c2",
+        ),
+        RawConcept("linear regression", "Fits a line to data.", "c3"),
+    ]
+    canonical = cluster_concepts(raw, _fake_embed_acronym, similarity_threshold=0.9)
+    merged = next(c for c in canonical if set(c.chunk_ids) == {"c1", "c2"})
+    # "GD" is all-uppercase <= 5 chars → penalised; "Gradient Descent" wins.
+    assert merged.name == "Gradient Descent"
+
+
+# ── IMP-3.3: adaptive threshold ───────────────────────────────────────────────
+
+_BIMODAL_VECTORS = {
+    "alpha: First.":                             [1.0, 0.0, 0.0, 0.0],
+    "Alpha variant: A close synonym of alpha.":  [0.999, 0.01, 0.0, 0.0],   # ~1.0 vs alpha
+    "beta: Second.":                             [0.0, 0.0, 1.0, 0.0],
+    "Beta prime: A close synonym of beta.":      [0.0, 0.0, 0.999, 0.01],   # ~1.0 vs beta
+}
+
+
+def _fake_embed_bimodal(texts: list[str]) -> np.ndarray:
+    return np.array([_BIMODAL_VECTORS[text] for text in texts])
+
+
+def test_adaptive_threshold_merges_bimodal_clusters_correctly():
+    """IMP-3.3 — with similarity_threshold=None the adaptive (percentile-based)
+    threshold is computed from the embedding distribution itself, making it
+    model-agnostic.  A bimodal distribution (two tight intra-cluster pairs far
+    from each other) should yield exactly 2 canonical concepts."""
+    raw = [
+        RawConcept("alpha", "First.", "c1"),
+        RawConcept("Alpha variant", "A close synonym of alpha.", "c2"),
+        RawConcept("beta", "Second.", "c3"),
+        RawConcept("Beta prime", "A close synonym of beta.", "c4"),
+    ]
+    # similarity_threshold=None → auto-calibrate
+    canonical = cluster_concepts(raw, _fake_embed_bimodal, similarity_threshold=None)
+    assert len(canonical) == 2, (
+        f"Expected 2 canonical concepts, got {len(canonical)}: "
+        + ", ".join(c.name for c in canonical)
+    )

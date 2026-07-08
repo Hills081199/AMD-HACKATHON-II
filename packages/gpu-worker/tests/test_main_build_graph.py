@@ -8,7 +8,7 @@ from worker.main import app, get_fireworks_client
 
 
 class _FakeFireworks:
-    def infer_direction(self, concept_a: dict, concept_b: dict) -> dict:
+    def infer_direction(self, concept_a: dict, concept_b: dict, **kwargs) -> dict:
         return {"direction": "a_before_b", "confidence": 0.85}
 
 
