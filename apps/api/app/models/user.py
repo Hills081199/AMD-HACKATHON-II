@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, Integer, Enum as SQLEnum
+from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 import enum
 
@@ -44,6 +45,9 @@ class User(Base):
     quizzes_completed = Column(Integer, default=0)
     chat_messages_today = Column(Integer, default=0)
     chat_reset_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    topics = relationship("Topic", back_populates="user")
 
 
 class PasswordReset(Base):

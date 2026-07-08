@@ -1,8 +1,12 @@
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from datetime import datetime
 
 from app.db.database import get_db
 from app.models.user import User, UserTier
+from app.models.topic import Topic, ProcessingStatus
 from app.schemas.user import (
     UserResponse,
     UserUpdate,
@@ -11,6 +15,18 @@ from app.schemas.user import (
 )
 from app.auth.dependencies import get_current_user
 from app.auth.password import hash_password, verify_password
+
+
+class TopicSummary(BaseModel):
+    id: str
+    title: str | None
+    status: str
+    document_count: int
+    created_at: datetime
+    completed_at: datetime | None
+
+    class Config:
+        from_attributes = True
 
 router = APIRouter()
 
@@ -88,3 +104,31 @@ def get_usage(current_user: User = Depends(get_current_user)):
         chat_messages_limit=limits["chat_messages"],
         tier=current_user.tier.value,
     )
+
+
+@router.get("/topics", response_model=List[TopicSummary])
+def get_user_topics(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get all learning paths (topics) created by the user."""
+    topics = db.query(Topic).filter(
+        Topic.user_id == current_user.id
+    ).order_by(Topic.created_at.desc()).all()
+
+    result = []
+    for topic in topics:
+        # Count documents for this topic
+        from app.models.topic import Document
+        doc_count = db.query(Document).filter(Document.topic_id == topic.id).count()
+
+        result.append(TopicSummary(
+            id=str(topic.id),
+            title=topic.title,
+            status=topic.status.value,
+            document_count=doc_count,
+            created_at=topic.created_at,
+            completed_at=topic.completed_at,
+        ))
+
+    return result

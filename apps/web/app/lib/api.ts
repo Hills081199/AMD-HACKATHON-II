@@ -69,6 +69,8 @@ export const userApi = {
     }),
 
   getUsage: () => apiRequest<import("./types").UsageStats>("/api/user/usage"),
+
+  getTopics: () => apiRequest<import("./types").TopicSummary[]>("/api/user/topics"),
 };
 
 export const adminApi = {

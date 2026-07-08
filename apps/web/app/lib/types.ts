@@ -30,3 +30,12 @@ export interface AuthResponse {
 export interface ApiError {
   detail: string;
 }
+
+export interface TopicSummary {
+  id: string;
+  title: string | null;
+  status: "pending" | "processing" | "completed" | "failed";
+  document_count: number;
+  created_at: string;
+  completed_at: string | null;
+}

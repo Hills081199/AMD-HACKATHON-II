@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  User,
+  User as UserIcon,
   Mail,
   Calendar,
   Crown,
@@ -15,16 +15,23 @@ import {
   Save,
   X,
   Loader2,
-  ArrowLeft,
+  BookOpen,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  ExternalLink,
 } from "lucide-react";
 import { useAuth } from "../lib/auth-context";
 import { userApi } from "../lib/api";
-import { UsageStats } from "../lib/types";
+import { UsageStats, TopicSummary } from "../lib/types";
+import { Header } from "../components/Header";
 
 export default function ProfilePage() {
   const router = useRouter();
   const { user, isLoading: authLoading, isAuthenticated, refreshUser } = useAuth();
   const [usage, setUsage] = useState<UsageStats | null>(null);
+  const [topics, setTopics] = useState<TopicSummary[]>([]);
+  const [topicsLoading, setTopicsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -40,6 +47,10 @@ export default function ProfilePage() {
     if (user) {
       setDisplayName(user.display_name || "");
       userApi.getUsage().then(setUsage).catch(console.error);
+      userApi.getTopics()
+        .then(setTopics)
+        .catch(console.error)
+        .finally(() => setTopicsLoading(false));
     }
   }, [user]);
 
@@ -81,25 +92,46 @@ export default function ProfilePage() {
     return Math.min((used / limit) * 100, 100);
   };
 
+  const getStatusIcon = (status: TopicSummary["status"]) => {
+    switch (status) {
+      case "completed":
+        return <CheckCircle size={16} className="text-green-500" />;
+      case "processing":
+        return <Loader2 size={16} className="animate-spin text-secondary" />;
+      case "pending":
+        return <Clock size={16} className="text-outline" />;
+      case "failed":
+        return <AlertCircle size={16} className="text-error" />;
+    }
+  };
+
+  const getStatusLabel = (status: TopicSummary["status"]) => {
+    switch (status) {
+      case "completed":
+        return "Completed";
+      case "processing":
+        return "Processing...";
+      case "pending":
+        return "Pending";
+      case "failed":
+        return "Failed";
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
   return (
     <div className="relative min-h-screen bg-surface">
       <div className="pointer-events-none fixed inset-0 z-0 bg-graph-pattern opacity-20" />
       <div className="pointer-events-none fixed inset-0 z-0 bg-gradient-to-b from-surface via-surface/90 to-surface" />
 
-      <header className="fixed top-0 z-50 flex h-16 w-full items-center justify-between border-b border-white/10 bg-surface/70 px-margin-mobile shadow-sm backdrop-blur-xl md:px-margin-desktop">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="text-headline-lg font-bold text-on-surface">
-            Atlas
-          </Link>
-        </div>
-        <Link
-          href="/"
-          className="flex items-center gap-2 text-on-surface-variant hover:text-on-surface"
-        >
-          <ArrowLeft size={20} />
-          Back
-        </Link>
-      </header>
+      <Header />
 
       <main className="relative z-10 mx-auto max-w-4xl px-margin-mobile pb-16 pt-24 md:px-margin-desktop">
         <h1 className="mb-8 text-3xl font-bold text-on-surface">Profile</h1>
@@ -114,7 +146,7 @@ export default function ProfilePage() {
             <div className="mb-6 flex items-start justify-between">
               <div className="flex items-center gap-4">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/20">
-                  <User size={32} className="text-primary" />
+                  <UserIcon size={32} className="text-primary" />
                 </div>
                 <div>
                   {isEditing ? (
@@ -272,6 +304,93 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Learning Paths Section */}
+        <div className="mt-8 glass-panel rounded-xl p-6">
+          <div className="mb-6 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-on-surface flex items-center gap-2">
+              <BookOpen size={20} className="text-secondary" />
+              My Learning Paths
+            </h3>
+            <Link
+              href="/"
+              className="text-sm text-secondary hover:text-secondary/80 flex items-center gap-1"
+            >
+              Create New
+              <ExternalLink size={14} />
+            </Link>
+          </div>
+
+          {topicsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : topics.length === 0 ? (
+            <div className="text-center py-12">
+              <TreeDeciduous size={48} className="mx-auto mb-4 text-outline" />
+              <p className="text-on-surface-variant mb-4">
+                You haven&apos;t created any learning paths yet.
+              </p>
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 rounded-lg bg-tertiary px-6 py-3 font-medium text-on-primary transition-colors hover:bg-tertiary/90"
+              >
+                <FileText size={18} />
+                Upload Documents
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {topics.map((topic) => (
+                <div
+                  key={topic.id}
+                  className="flex items-center justify-between rounded-lg border border-outline-variant bg-surface-container p-4 transition-colors hover:border-secondary/50"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      {getStatusIcon(topic.status)}
+                      <h4 className="font-medium text-on-surface truncate">
+                        {topic.title || "Untitled Learning Path"}
+                      </h4>
+                    </div>
+                    <div className="flex items-center gap-4 text-sm text-on-surface-variant">
+                      <span className="flex items-center gap-1">
+                        <FileText size={14} />
+                        {topic.document_count} document{topic.document_count !== 1 ? "s" : ""}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Calendar size={14} />
+                        {formatDate(topic.created_at)}
+                      </span>
+                      <span className="text-xs px-2 py-0.5 rounded bg-surface/50">
+                        {getStatusLabel(topic.status)}
+                      </span>
+                    </div>
+                  </div>
+                  {topic.status === "completed" && (
+                    <Link
+                      href={`/tree?topic=${topic.id}`}
+                      className="ml-4 flex items-center gap-2 rounded-lg bg-secondary/10 px-4 py-2 text-sm font-medium text-secondary transition-colors hover:bg-secondary/20"
+                    >
+                      <TreeDeciduous size={16} />
+                      View Tree
+                    </Link>
+                  )}
+                  {topic.status === "processing" && (
+                    <span className="ml-4 text-sm text-on-surface-variant">
+                      Processing...
+                    </span>
+                  )}
+                  {topic.status === "failed" && (
+                    <span className="ml-4 text-sm text-error">
+                      Failed
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </main>
     </div>
