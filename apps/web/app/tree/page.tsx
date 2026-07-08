@@ -14,6 +14,7 @@ import { QuizModal, type QuizResult } from "./QuizModal";
 import { TreeNode, type TreeFlowNode } from "./TreeNode";
 import type { NodeSource, NodeStatus, TreeResponse } from "./types";
 import { deriveNodeStatuses, seedCompletedIds, toDisplayNodes } from "./unlock";
+import React from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 // Default topic ID for demo purposes
@@ -33,7 +34,7 @@ const EDGE_STYLE_BY_TARGET_STATUS: Record<NodeStatus, CSSProperties> = {
   completed: { stroke: "#4edea3", strokeWidth: 2 },
 };
 
-export default function TreePage() {
+function TreePageContent() {
   const searchParams = useSearchParams();
   const topicId = searchParams.get("topic") || DEFAULT_TOPIC_ID;
 
@@ -281,3 +282,18 @@ export default function TreePage() {
     </div>
   );
 }
+
+export default function TreePage() {
+  return (
+    <React.Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-surface p-8">
+          <p className="text-on-surface-variant">Loading mastery tree…</p>
+        </main>
+      }
+    >
+      <TreePageContent />
+    </React.Suspense>
+  );
+}
+
