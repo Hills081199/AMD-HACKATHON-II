@@ -21,8 +21,22 @@ services:
       - ./apps/api:/app
     environment:
       - SAMPLE_TREE_PATH=/data/generated/demo_tree.generated.json
+      - DB_URL=postgresql://postgres:postgres@db:5432/atlas
     depends_on:
       - gpu-worker
+      - db
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=atlas
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
 
   gpu-worker:
     build:
@@ -50,3 +64,6 @@ services:
     env_file: .env
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+
+volumes:
+  pgdata:

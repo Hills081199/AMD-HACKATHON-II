@@ -1,6 +1,11 @@
 """Pipeline steps 2-3 — concept extraction (Gemma) + clustering/dedupe.
 
 See docs/concept-graph-pipeline.md steps 2-3.
+
+IMP-A1: RawConcept and CanonicalConcept now carry a `difficulty` field
+('foundational' | 'intermediate' | 'advanced'). Both extractors ask the LLM
+to estimate difficulty; the field flows through clustering and is preserved in
+CanonicalConcept.to_dict() so Step 4 can use it to improve direction inference.
 """
 
 from __future__ import annotations
@@ -8,12 +13,16 @@ from __future__ import annotations
 import json
 import os
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import networkx as nx
 import numpy as np
 
 from worker.ingest import Chunk
+
+# Valid difficulty levels produced by the extraction prompt
+_VALID_DIFFICULTIES = {"foundational", "intermediate", "advanced"}
+_DEFAULT_DIFFICULTY = "intermediate"
 
 
 @dataclass
@@ -21,6 +30,7 @@ class RawConcept:
     name: str
     definition: str
     chunk_id: str
+    difficulty: str = field(default=_DEFAULT_DIFFICULTY)  # IMP-A1
 
 
 @dataclass
@@ -30,15 +40,31 @@ class CanonicalConcept:
     definition: str
     chunk_ids: list[str]
     embedding: list[float]
+    difficulty: str = field(default=_DEFAULT_DIFFICULTY)  # IMP-A1
 
     def to_dict(self) -> dict:
         return {
             "id": self.id,
             "name": self.name,
             "definition": self.definition,
+            "difficulty": self.difficulty,
             "chunk_ids": self.chunk_ids,
             "embedding": [float(x) for x in self.embedding],
         }
+
+
+def _coerce_difficulty(value: str | None) -> str:
+    """Normalise whatever the LLM returned to a canonical difficulty level."""
+    if not value:
+        return _DEFAULT_DIFFICULTY
+    v = value.strip().lower()
+    if v in _VALID_DIFFICULTIES:
+        return v
+    # Fuzzy match
+    for level in ("foundational", "intermediate", "advanced"):
+        if level in v:
+            return level
+    return _DEFAULT_DIFFICULTY
 
 
 class GemmaConceptExtractor:
@@ -57,10 +83,17 @@ class GemmaConceptExtractor:
     def extract(self, chunk: Chunk) -> list[RawConcept]:
         import httpx
 
+        # IMP-A1: ask for difficulty level per concept
         prompt = (
-            "List the distinct learning concepts this text teaches. Return "
-            "strict JSON: a list of objects with 'name' (short canonical "
-            "name) and 'definition' (one sentence). Text:\n\n" + chunk.text
+            "List the distinct learning concepts this text teaches. "
+            "For each concept, also estimate its difficulty: "
+            "'foundational' (can be understood without other concepts), "
+            "'intermediate' (requires some background knowledge), or "
+            "'advanced' (requires multiple prerequisites to understand). "
+            "Return strict JSON: {\"concepts\": [{\"name\": <short canonical name>, "
+            "\"definition\": <one sentence>, "
+            "\"difficulty\": \"foundational\"|\"intermediate\"|\"advanced\"}, ...]}.\n\n"
+            "Text:\n\n" + chunk.text
         )
         response = httpx.post(
             f"{self.base_url}/api/generate",
@@ -68,9 +101,14 @@ class GemmaConceptExtractor:
             timeout=self.timeout,
         )
         response.raise_for_status()
-        items = json.loads(response.json()["response"])
+        items = json.loads(response.json()["response"]).get("concepts", [])
         return [
-            RawConcept(name=item["name"], definition=item.get("definition", ""), chunk_id=chunk.chunk_id)
+            RawConcept(
+                name=item["name"],
+                definition=item.get("definition", ""),
+                chunk_id=chunk.chunk_id,
+                difficulty=_coerce_difficulty(item.get("difficulty")),
+            )
             for item in items
         ]
 
@@ -88,12 +126,16 @@ class GemmaConceptExtractor:
         import httpx
 
         blocks = "\n\n".join(f"[CHUNK {i}]\n{chunk.text}" for i, chunk in enumerate(chunks))
+        # IMP-A1: batch prompt also requests difficulty
         prompt = (
             "You are given several text chunks, each marked '[CHUNK i]'. For "
             "each chunk, list the distinct learning concepts it teaches. "
+            "For each concept estimate its difficulty: 'foundational', "
+            "'intermediate', or 'advanced'. "
             "Return strict JSON: {\"results\": [{\"chunk_index\": <int>, "
             "\"concepts\": [{\"name\": <short canonical name>, \"definition\": "
-            "<one sentence>}, ...]}, ...]}.\n\n" + blocks
+            "<one sentence>, \"difficulty\": \"foundational\"|\"intermediate\"|\"advanced\"}, ...]}, ...]}\n\n"
+            + blocks
         )
         response = httpx.post(
             f"{self.base_url}/api/generate",
@@ -124,10 +166,16 @@ class OpenAIConceptExtractor:
     def extract(self, chunk: Chunk) -> list[RawConcept]:
         import httpx
 
+        # IMP-A1: prompt requests difficulty level
         prompt = (
-            "List the distinct learning concepts this text teaches. Respond "
-            "with strict JSON only: {\"concepts\": [{\"name\": <short "
-            "canonical name>, \"definition\": <one sentence>}, ...]}.\n\n"
+            "List the distinct learning concepts this text teaches. "
+            "For each concept, estimate its difficulty: "
+            "'foundational' (no prerequisites needed), "
+            "'intermediate' (requires some background), or "
+            "'advanced' (requires multiple prerequisites). "
+            "Respond with strict JSON only: {\"concepts\": [{\"name\": <short "
+            "canonical name>, \"definition\": <one sentence>, "
+            "\"difficulty\": \"foundational\"|\"intermediate\"|\"advanced\"}, ...]}.\n\n"
             "Text:\n\n" + chunk.text
         )
         response = httpx.post(
@@ -144,7 +192,12 @@ class OpenAIConceptExtractor:
         content = response.json()["choices"][0]["message"]["content"]
         items = json.loads(content).get("concepts", [])
         return [
-            RawConcept(name=item["name"], definition=item.get("definition", ""), chunk_id=chunk.chunk_id)
+            RawConcept(
+                name=item["name"],
+                definition=item.get("definition", ""),
+                chunk_id=chunk.chunk_id,
+                difficulty=_coerce_difficulty(item.get("difficulty")),
+            )
             for item in items
         ]
 
@@ -156,12 +209,16 @@ class OpenAIConceptExtractor:
         import httpx
 
         blocks = "\n\n".join(f"[CHUNK {i}]\n{chunk.text}" for i, chunk in enumerate(chunks))
+        # IMP-A1: batch prompt requests difficulty
         prompt = (
             "You are given several text chunks, each marked '[CHUNK i]'. For "
             "each chunk, list the distinct learning concepts it teaches. "
+            "For each concept, estimate difficulty: 'foundational', 'intermediate', or 'advanced'. "
             "Respond with strict JSON only: {\"results\": [{\"chunk_index\": "
             "<int>, \"concepts\": [{\"name\": <short canonical name>, "
-            "\"definition\": <one sentence>}, ...]}, ...]}.\n\n" + blocks
+            "\"definition\": <one sentence>, "
+            "\"difficulty\": \"foundational\"|\"intermediate\"|\"advanced\"}, ...]}, ...]}\n\n"
+            + blocks
         )
         response = httpx.post(
             f"{self.base_url}/chat/completions",
@@ -243,6 +300,7 @@ def _raw_concepts_from_batch(results: list[dict], chunks: list[Chunk]) -> list[R
                     name=item["name"],
                     definition=item.get("definition", ""),
                     chunk_id=chunk_id,
+                    difficulty=_coerce_difficulty(item.get("difficulty")),  # IMP-A1
                 )
             )
     return raw
@@ -297,7 +355,7 @@ def extract_raw_concepts(
 
 
 def _compute_adaptive_threshold(
-    similarity: np.ndarray, 
+    similarity: np.ndarray,
     target_percentile: float = 95.0
 ) -> float:
     """
@@ -314,6 +372,10 @@ def _compute_adaptive_threshold(
     return float(np.percentile(upper_tri, target_percentile))
 
 
+# IMP-A1: difficulty ordering for canonical selection tie-breaking
+_DIFFICULTY_ORDER = {"foundational": 0, "intermediate": 1, "advanced": 2}
+
+
 def cluster_concepts(
     raw_concepts: list[RawConcept],
     embed_fn,
@@ -324,6 +386,8 @@ def cluster_concepts(
 
     No LLM call here by design (docs/concept-graph-pipeline.md step 3) —
     pure cosine similarity on embeddings + Louvain community detection.
+
+    IMP-A1: canonical difficulty is derived by majority vote within each cluster.
     """
     if not raw_concepts:
         return []
@@ -357,6 +421,7 @@ def cluster_concepts(
     for community in communities:
         member_indices = sorted(community)
         members = [raw_concepts[i] for i in member_indices]
+
         def quality_score(concept: RawConcept) -> tuple:
             name = concept.name
             is_acronym = name.isupper() and len(name) <= 5
@@ -365,9 +430,19 @@ def cluster_concepts(
                 len(concept.definition),
                 -len(name),
             )
-            
+
         canonical_member = max(members, key=quality_score)
-        
+
+        # IMP-A1: cluster difficulty = most common difficulty among members
+        # (majority vote; ties broken toward foundational = safest for ordering)
+        difficulty_counts: dict[str, int] = {}
+        for m in members:
+            difficulty_counts[m.difficulty] = difficulty_counts.get(m.difficulty, 0) + 1
+        cluster_difficulty = min(
+            difficulty_counts,
+            key=lambda d: (-difficulty_counts[d], _DIFFICULTY_ORDER.get(d, 1)),
+        )
+
         # Centroid of the cluster's unit vectors — carried through so step 4
         # (prerequisite inference) can pre-filter candidate pairs by
         # similarity without re-embedding concepts from scratch.
@@ -381,6 +456,7 @@ def cluster_concepts(
                 id=f"concept_{len(canonical) + 1:03d}",
                 name=canonical_member.name,
                 definition=canonical_member.definition,
+                difficulty=cluster_difficulty,
                 chunk_ids=sorted({member.chunk_id for member in members}),
                 embedding=centroid.tolist(),
             )

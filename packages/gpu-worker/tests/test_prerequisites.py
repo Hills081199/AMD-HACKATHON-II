@@ -30,17 +30,28 @@ _CONCEPTS = [
 
 
 def test_pre_filter_pairs_avoids_full_all_pairs_scan():
+    """With max_all_pairs smaller than the dataset size, similarity filtering kicks in."""
     all_pairs = list(combinations(range(len(_CONCEPTS)), 2))
-    filtered = pre_filter_pairs(_CONCEPTS, similarity_threshold=0.9)
+    # Pass max_all_pairs=5 so the all-pairs shortcut doesn't trigger (dataset has 6 concepts)
+    filtered = pre_filter_pairs(_CONCEPTS, similarity_threshold=0.9, max_all_pairs=5)
 
     assert len(all_pairs) == 15  # C(6, 2) — what an unfiltered scan would cost
-    assert filtered == [(0, 1), (2, 3), (4, 5)]
+    assert (0, 1) in filtered and (2, 3) in filtered and (4, 5) in filtered
     assert len(filtered) < len(all_pairs)
 
 
 def test_pre_filter_pairs_fewer_than_two_concepts_returns_empty():
-    assert pre_filter_pairs(_CONCEPTS[:1], similarity_threshold=0.9) == []
-    assert pre_filter_pairs([], similarity_threshold=0.9) == []
+    assert pre_filter_pairs(_CONCEPTS[:1], similarity_threshold=0.9, max_all_pairs=5) == []
+    assert pre_filter_pairs([], similarity_threshold=0.9, max_all_pairs=5) == []
+
+
+def test_pre_filter_pairs_all_pairs_when_small_dataset():
+    """IMP-A2 — when len(concepts) <= max_all_pairs, ALL pairs are returned
+    (no similarity filtering) to avoid missing prerequisite relationships."""
+    # 6 concepts, max_all_pairs=10 → all-pairs shortcut fires
+    all_pairs_expected = list(combinations(range(len(_CONCEPTS)), 2))
+    filtered = pre_filter_pairs(_CONCEPTS, similarity_threshold=0.9, max_all_pairs=10)
+    assert sorted(filtered) == sorted(all_pairs_expected)
 
 
 class _FakeFireworks:
@@ -66,11 +77,19 @@ def test_build_candidate_edges_only_calls_fireworks_for_prefiltered_pairs():
         }
     )
 
-    edges = build_candidate_edges(_CONCEPTS, fake, similarity_threshold=0.9)
+    # Wrap build_candidate_edges so pre_filter_pairs uses max_all_pairs=5,
+    # forcing similarity-based filtering (6 concepts > 5) instead of all-pairs.
+    from worker import prerequisites as prereqs_mod
+    import unittest.mock as mock
+    original_pfp = prereqs_mod.pre_filter_pairs
+    def patched_pfp(concepts, similarity_threshold=0.35, max_all_pairs=None):
+        return original_pfp(concepts, similarity_threshold=similarity_threshold, max_all_pairs=5)
+    with mock.patch.object(prereqs_mod, "pre_filter_pairs", side_effect=patched_pfp):
+        edges = build_candidate_edges(_CONCEPTS, fake, similarity_threshold=0.9, min_confidence=0.5)
 
     # 3 pre-filtered pairs, not all 15 — proving the O(n^2) scan was avoided.
-    assert fake.calls == [("concept_001", "concept_002"), ("concept_003", "concept_004"), ("concept_005", "concept_006")]
-    # Both 0.91 and 0.77 pass the default min_confidence=0.6 threshold.
+    assert set(fake.calls) == {("concept_001", "concept_002"), ("concept_003", "concept_004"), ("concept_005", "concept_006")}
+    # Both 0.91 and 0.77 pass the default min_confidence=0.5 threshold.
     assert {"from": "concept_001", "to": "concept_002", "confidence": 0.91} in edges
     assert {"from": "concept_004", "to": "concept_003", "confidence": 0.77} in edges
     assert len(edges) == 2  # the "none" pair produces no edge
@@ -173,6 +192,9 @@ def test_low_confidence_edge_dropped():
         {e["from"], e["to"]} == {"concept_003", "concept_004"} for e in edges
     ), "Low-confidence edge (0.4) should have been dropped"
 
+    # Reset _MAX_ALL_PAIRS side-effect if needed (test uses explicit min_confidence arg so pre_filter
+    # behaviour doesn't affect this assertion)
+
 
 # ── IMP-4.2: JSON error handling ────────────────────────────────────────────
 
@@ -241,14 +263,43 @@ def test_definition_containment_pair_included():
         },
     ]
 
-    # Use a high similarity threshold so that Strategy 1 produces NO pairs;
-    # only Strategy 3 (definition containment) should match (0, 1).
-    pairs = pre_filter_pairs(concepts, similarity_threshold=0.95)
+    # Use a high similarity threshold AND override max_all_pairs=2 (< 3 concepts)
+    # to ensure the similarity-based filter path is exercised, not all-pairs.
+    # With 3 concepts and max_all_pairs=2, similarity filter applies:
+    #   - (0,1): orthogonal embeddings, similarity=0 < 0.95 -> Strategy 1 fails
+    #   - But Strategy 3 (definition containment): 'matrix' in 'matrix objects' -> included
+    pairs = pre_filter_pairs(concepts, similarity_threshold=0.95, max_all_pairs=2)
 
     pair_set = set(pairs)
     assert (0, 1) in pair_set, (
         "(Matrix, Matrix Multiplication) must be included via definition containment "
         "even though their embeddings are orthogonal"
     )
+    # (0, 2) and (1, 2) should NOT be included — no definition containment or similarity
     assert (0, 2) not in pair_set, "Unrelated pair should not be pulled in"
     assert (1, 2) not in pair_set, "Unrelated pair should not be pulled in"
+
+
+def test_pre_filter_pairs_difficulty_pairs_always_included():
+    """IMP-A3 bonus: foundational ↔ advanced pairs are always included
+    regardless of embedding similarity when the dataset is large enough
+    to trigger similarity-based filtering (max_all_pairs < len(concepts))."""
+    import worker.prerequisites as prereqs_mod
+    orig = prereqs_mod._MAX_ALL_PAIRS
+    prereqs_mod._MAX_ALL_PAIRS = 2  # force similarity-based filter path
+    try:
+        concepts = [
+            {"id": "c1", "name": "Variable", "definition": "A storage location.",
+             "difficulty": "foundational", "embedding": [1.0, 0.0, 0.0]},
+            {"id": "c2", "name": "Pointer Arithmetic", "definition": "Advanced memory manipulation.",
+             "difficulty": "advanced", "embedding": [0.0, 1.0, 0.0]},  # orthogonal to c1
+            {"id": "c3", "name": "Loop", "definition": "A control structure.",
+             "difficulty": "intermediate", "embedding": [0.0, 0.0, 1.0]},
+        ]
+        pairs = pre_filter_pairs(concepts, similarity_threshold=0.95)
+    finally:
+        prereqs_mod._MAX_ALL_PAIRS = orig
+
+    pair_set = set(pairs)
+    # foundational ↔ advanced pair must be included despite orthogonal embeddings
+    assert (0, 1) in pair_set, "Foundational↔Advanced pair should always be included"

@@ -38,8 +38,9 @@ def test_gemma_extractor_calls_local_endpoint_not_a_hosted_api(monkeypatch):
     def fake_post(url, json=None, timeout=None):
         captured["url"] = url
         captured["timeout"] = timeout
+        # IMP-A1: Gemma extractor now expects {"concepts": [...]} format with optional difficulty
         return _FakeResponse(
-            {"response": json_module.dumps([{"name": "Derivatives", "definition": "Rate of change."}])}
+            {"response": json_module.dumps({"concepts": [{"name": "Derivatives", "definition": "Rate of change."}]})}
         )
 
     monkeypatch.setattr("httpx.post", fake_post)
@@ -50,7 +51,8 @@ def test_gemma_extractor_calls_local_endpoint_not_a_hosted_api(monkeypatch):
     concepts = extractor.extract(chunk)
 
     assert captured["url"] == "http://localhost:11434/api/generate"
-    assert concepts == [RawConcept(name="Derivatives", definition="Rate of change.", chunk_id="d.pdf:p1")]
+    # IMP-A1: difficulty defaults to 'intermediate' when not in LLM response
+    assert concepts == [RawConcept(name="Derivatives", definition="Rate of change.", chunk_id="d.pdf:p1", difficulty="intermediate")]
 
 
 def test_extract_raw_concepts_aggregates_across_chunks():
@@ -160,9 +162,10 @@ def test_gemma_extract_batch_sends_one_call_and_maps_by_chunk_index(monkeypatch)
 
     assert captured["url"] == "http://localhost:11434/api/generate"
     assert captured["calls"] == 1  # two chunks, one HTTP call
+    # IMP-A1: difficulty defaults to 'intermediate' when not provided by LLM
     assert raw == [
-        RawConcept(name="Vectors", definition="d1", chunk_id="d.pdf:p1"),
-        RawConcept(name="Gradients", definition="d2", chunk_id="d.pdf:p2"),
+        RawConcept(name="Vectors", definition="d1", chunk_id="d.pdf:p1", difficulty="intermediate"),
+        RawConcept(name="Gradients", definition="d2", chunk_id="d.pdf:p2", difficulty="intermediate"),
     ]
 
 
@@ -208,9 +211,10 @@ def test_openai_extract_batch_sends_one_call_and_maps_by_chunk_index(monkeypatch
 
     assert captured["url"] == "https://api.openai.com/v1/chat/completions"
     assert captured["calls"] == 1
+    # IMP-A1: difficulty defaults to 'intermediate' when not provided by LLM
     assert raw == [
-        RawConcept(name="Vectors", definition="d1", chunk_id="d.pdf:p1"),
-        RawConcept(name="Gradients", definition="d2", chunk_id="d.pdf:p2"),
+        RawConcept(name="Vectors", definition="d1", chunk_id="d.pdf:p1", difficulty="intermediate"),
+        RawConcept(name="Gradients", definition="d2", chunk_id="d.pdf:p2", difficulty="intermediate"),
     ]
 
 
@@ -289,7 +293,8 @@ def test_openai_concept_extractor_posts_to_chat_completions_and_parses_concepts(
     assert captured["url"] == "https://api.openai.com/v1/chat/completions"
     assert captured["headers"]["Authorization"] == "Bearer test-key"
     assert captured["json"]["response_format"] == {"type": "json_object"}
-    assert concepts == [RawConcept(name="Derivatives", definition="Rate of change.", chunk_id="d.pdf:p1")]
+    # IMP-A1: difficulty defaults to 'intermediate' when not in LLM response
+    assert concepts == [RawConcept(name="Derivatives", definition="Rate of change.", chunk_id="d.pdf:p1", difficulty="intermediate")]
 
 
 def test_openai_embedder_posts_to_embeddings_endpoint_and_preserves_order(monkeypatch):

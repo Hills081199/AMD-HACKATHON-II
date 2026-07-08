@@ -4,6 +4,16 @@ See docs/concept-graph-pipeline.md step 4. Runs here (gpu-worker), not in
 apps/api — see docs/architecture.md's "Data contract" section: gpu-worker
 produces the candidate graph (nodes + inferred prerequisite edges) and hands
 it to api, which starts at the self-checking validation loop (step 5).
+
+IMP-A2: pre_filter_pairs() runs all-pairs for datasets with ≤ MAX_ALL_PAIRS
+concepts (default 60) instead of applying a similarity threshold, avoiding
+missed prerequisite relationships between semantically dissimilar concepts
+(e.g. "Recursion" → "Algorithm Design" may have low cosine similarity but a
+clear pedagogical dependency).
+
+IMP-A3: infer_direction() prompt now includes both concepts' difficulty levels,
+giving the LLM a strong prior: foundational → advanced edges are much more
+likely than the reverse.
 """
 
 from __future__ import annotations
@@ -12,6 +22,9 @@ import json
 import os
 
 import numpy as np
+
+# IMP-A2: when n ≤ this, skip similarity filter and check all pairs
+_MAX_ALL_PAIRS = int(os.environ.get("PREREQ_MAX_ALL_PAIRS", "60"))
 
 
 class FireworksClient:
@@ -48,17 +61,22 @@ class FireworksClient:
         self.timeout = timeout
 
     def infer_direction(
-        self, 
-        concept_a: dict, 
+        self,
+        concept_a: dict,
         concept_b: dict,
         all_concepts: list[dict] | None = None,
         domain: str = "general learning",
     ) -> dict:
         """Ask whether concept_a or concept_b is a prerequisite of the
         other. Returns {"direction": "a_before_b"|"b_before_a"|"none",
-        "confidence": float}."""
+        "confidence": float}.
+
+        IMP-A3: prompt now includes difficulty levels for both concepts,
+        giving the model a strong prior that foundational → intermediate →
+        advanced is the natural direction.
+        """
         import httpx
-        
+
         context_block = ""
         if all_concepts:
             concept_list = ", ".join(c["name"] for c in all_concepts[:30])
@@ -67,17 +85,29 @@ class FireworksClient:
                 f"{concept_list}.\n\n"
             )
 
+        # IMP-A3: include difficulty in the prompt to help the LLM decide direction
+        diff_a = concept_a.get("difficulty", "intermediate")
+        diff_b = concept_b.get("difficulty", "intermediate")
+        difficulty_hint = ""
+        if diff_a != diff_b:
+            difficulty_hint = (
+                f"\nNote: Concept A is marked '{diff_a}' and Concept B is marked '{diff_b}'. "
+                "A more foundational concept is typically a prerequisite of a more advanced one. "
+                "Use this as a strong prior when the pedagogical relationship is ambiguous.\n"
+            )
+
         prompt = (
-            context_block +
-            "Determine whether one of these two concepts is a learning prerequisite for the other. "
+            context_block
+            + "Determine whether one of these two concepts is a learning prerequisite for the other. "
             "A prerequisite is something a learner must understand BEFORE they can understand the other concept.\n\n"
-            f"Concept A: {concept_a['name']} — {concept_a['definition']}\n"
-            f"Concept B: {concept_b['name']} — {concept_b['definition']}\n\n"
-            'Return strict JSON: {"direction": "a_before_b" | "b_before_a" | "none", '
+            f"Concept A: {concept_a['name']} [{diff_a}] — {concept_a['definition']}\n"
+            f"Concept B: {concept_b['name']} [{diff_b}] — {concept_b['definition']}\n"
+            + difficulty_hint
+            + "\nReturn strict JSON: {\"direction\": \"a_before_b\" | \"b_before_a\" | \"none\", "
             '"confidence": <0.0-1.0>, "reasoning": "<one sentence>"}. '
             '"none" means they can be learned independently or in either order.'
         )
-        
+
         for attempt in range(3):
             try:
                 response = httpx.post(
@@ -95,7 +125,7 @@ class FireworksClient:
                 result = json.loads(content)
                 if result.get("direction") in ("a_before_b", "b_before_a", "none"):
                     return result
-            except (json.JSONDecodeError, KeyError, httpx.HTTPError) as exc:
+            except (json.JSONDecodeError, KeyError, Exception) as exc:
                 if attempt == 2:
                     print(f"[WARN] infer_direction failed after 3 attempts for "
                           f"({concept_a.get('name')}, {concept_b.get('name')}): {exc}")
@@ -103,34 +133,52 @@ class FireworksClient:
         return {"direction": "none", "confidence": 0.0}
 
 
-def pre_filter_pairs(concepts: list[dict], similarity_threshold: float = 0.35) -> list[tuple[int, int]]:
-    """
-    Multi-strategy pre-filter. Includes a pair if it passes ANY of the criteria:
-    
-    1. High semantic similarity (same as before, but with adaptive threshold)
-    2. Name-length disparity heuristic: short-name concepts are often prerequisites of
-       longer-name concepts in the same domain (e.g., "Matrix" before "Matrix Decomposition")
-    3. Definition containment: if concept A's name appears in concept B's definition, 
-       A is likely a prerequisite of B
+def pre_filter_pairs(
+    concepts: list[dict],
+    similarity_threshold: float = 0.35,
+    max_all_pairs: int = _MAX_ALL_PAIRS,
+) -> list[tuple[int, int]]:
+    """Multi-strategy pre-filter. Returns pairs (i, j) that should be checked
+    by the LLM for prerequisite direction.
+
+    IMP-A2: when len(concepts) <= max_all_pairs, ALL pairs are returned
+    (no similarity filter). This is the most impactful improvement for small
+    datasets (≤60 concepts) — with only 26 concepts we have 325 pairs,
+    which is cheap enough to check all of them and avoids missing
+    prerequisite relationships between semantically dissimilar concepts
+    (e.g. "Recursion" → "Algorithm Design").
+
+    For larger datasets, three complementary strategies are used:
+    1. High semantic similarity (cosine ≥ threshold)
+    2. Name-length disparity heuristic: short → long often means general → specific
+    3. Definition containment: if A's name appears in B's definition, A is likely a prerequisite
+
+    IMP-A3 bonus: difficulty-based pairs are always included when difficulties differ
+    (foundational paired with advanced is a very strong prerequisite signal).
     """
     if len(concepts) < 2:
         return []
 
-    pairs = set()
     n = len(concepts)
-    
-    # Strategy 1: Semantic similarity (existing approach)
+
+    # IMP-A2: small dataset → all pairs, skip similarity filter
+    if n <= max_all_pairs:
+        return [(i, j) for i in range(n) for j in range(i + 1, n)]
+
+    pairs: set[tuple[int, int]] = set()
+
+    # Strategy 1: Semantic similarity
     vectors = np.asarray([concept["embedding"] for concept in concepts], dtype=float)
     norms = np.linalg.norm(vectors, axis=1, keepdims=True)
     norms[norms == 0] = 1.0
     unit_vectors = vectors / norms
     similarity = unit_vectors @ unit_vectors.T
-    
+
     for i in range(n):
         for j in range(i + 1, n):
             if similarity[i, j] >= similarity_threshold:
                 pairs.add((i, j))
-    
+
     # Strategy 2: Name-length disparity
     for i in range(n):
         for j in range(i + 1, n):
@@ -138,7 +186,7 @@ def pre_filter_pairs(concepts: list[dict], similarity_threshold: float = 0.35) -
             ratio = max(len_i, len_j) / max(min(len_i, len_j), 1)
             if ratio >= 2.5 and similarity[i, j] >= 0.2:
                 pairs.add((i, j))
-    
+
     # Strategy 3: Definition containment
     for i in range(n):
         for j in range(i + 1, n):
@@ -148,33 +196,59 @@ def pre_filter_pairs(concepts: list[dict], similarity_threshold: float = 0.35) -
             def_j_lower = concepts[j].get("definition", "").lower()
             if name_i_lower in def_j_lower or name_j_lower in def_i_lower:
                 pairs.add((i, j))
-    
+
+    # IMP-A3 bonus: always include pairs where difficulties differ
+    # (foundational ↔ advanced is almost always a prerequisite relationship)
+    _DIFF_ORDER = {"foundational": 0, "intermediate": 1, "advanced": 2}
+    for i in range(n):
+        for j in range(i + 1, n):
+            d_i = _DIFF_ORDER.get(concepts[i].get("difficulty", "intermediate"), 1)
+            d_j = _DIFF_ORDER.get(concepts[j].get("difficulty", "intermediate"), 1)
+            if abs(d_i - d_j) >= 2:  # foundational ↔ advanced
+                pairs.add((i, j))
+
     return sorted(list(pairs))
 
 
-MIN_CONFIDENCE = float(os.environ.get("PREREQ_MIN_CONFIDENCE", "0.6"))
+MIN_CONFIDENCE = float(os.environ.get("PREREQ_MIN_CONFIDENCE", "0.5"))  # IMP-A3: lowered from 0.6
+
 
 def build_candidate_edges(
-    concepts: list[dict], 
-    fireworks: FireworksClient, 
+    concepts: list[dict],
+    fireworks: FireworksClient,
     similarity_threshold: float = 0.35,
     min_confidence: float = MIN_CONFIDENCE,
 ) -> list[dict]:
     """Infer directed prerequisite edges (with confidence) for pre-filtered
     concept pairs only. Returns candidate_edges[] as {from, to, confidence}
-    dicts keyed by concept id."""
+    dicts keyed by concept id.
+
+    IMP-A2: pre_filter_pairs() now uses all-pairs for small datasets.
+    IMP-A3: min_confidence lowered to 0.5 (from 0.6) to reduce false negatives.
+    """
+    import concurrent.futures
+    import os
+
     edges: list[dict] = []
-    for i, j in pre_filter_pairs(concepts, similarity_threshold):
+    pairs = pre_filter_pairs(concepts, similarity_threshold)
+    print(f"  [Step 4] Checking {len(pairs)} candidate pairs from {len(concepts)} concepts...")
+
+    def _check_pair(pair: tuple[int, int]) -> tuple[dict, dict, str, float]:
+        i, j = pair
         concept_a, concept_b = concepts[i], concepts[j]
         result = fireworks.infer_direction(concept_a, concept_b, all_concepts=concepts)
         direction = result.get("direction")
         confidence = float(result.get("confidence", 0.0))
-        
-        if confidence < min_confidence:
-            continue
-            
-        if direction == "a_before_b":
-            edges.append({"from": concept_a["id"], "to": concept_b["id"], "confidence": confidence})
-        elif direction == "b_before_a":
-            edges.append({"from": concept_b["id"], "to": concept_a["id"], "confidence": confidence})
+        return concept_a, concept_b, direction, confidence
+
+    max_workers = int(os.environ.get("PREREQ_MAX_WORKERS", "10"))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        for concept_a, concept_b, direction, confidence in executor.map(_check_pair, pairs):
+            if confidence < min_confidence:
+                continue
+
+            if direction == "a_before_b":
+                edges.append({"from": concept_a["id"], "to": concept_b["id"], "confidence": confidence})
+            elif direction == "b_before_a":
+                edges.append({"from": concept_b["id"], "to": concept_a["id"], "confidence": confidence})
     return edges
