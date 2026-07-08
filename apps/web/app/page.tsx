@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, CircleUserRound, FileText, Upload, Workflow } from "lucide-react";
+import { ArrowRight, FileText, Upload, Workflow } from "lucide-react";
+import { UserMenu } from "./components/UserMenu";
 
 export default function HomePage() {
   return (
@@ -9,12 +10,7 @@ export default function HomePage() {
 
       <header className="fixed top-0 z-50 flex h-16 w-full items-center justify-between border-b border-white/10 bg-surface/70 px-margin-mobile shadow-sm backdrop-blur-xl md:px-margin-desktop">
         <div className="text-headline-lg font-bold tracking-tight text-on-surface">Atlas</div>
-        <button
-          aria-label="Account"
-          className="flex items-center justify-center text-on-surface-variant transition-colors duration-200 hover:text-secondary"
-        >
-          <CircleUserRound size={24} />
-        </button>
+        <UserMenu />
       </header>
 
       <main className="z-10 flex flex-grow flex-col items-center justify-center px-margin-mobile pb-16 pt-24 md:px-margin-desktop">

@@ -40,3 +40,13 @@ services:
     #   - /dev/dri
     # group_add:
     #   - video
+
+  ai-quiz-service:
+    build:
+      context: ./packages/ai-quiz-service
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    env_file: .env
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
