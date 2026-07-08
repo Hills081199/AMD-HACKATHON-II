@@ -3,8 +3,10 @@
 import "@xyflow/react/dist/style.css";
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useSearchParams } from "next/navigation";
 import { Controls, ReactFlow, type Edge, type NodeMouseHandler } from "@xyflow/react";
-import { CircleUserRound, FileText, Network, Settings2, Workflow } from "lucide-react";
+import { FileText, Network, Settings2, Workflow } from "lucide-react";
+import { Header } from "../components/Header";
 
 import { layoutNodesByLevel } from "./positions";
 import { useTreeProgressStore } from "./progressStore";
@@ -14,10 +16,8 @@ import type { NodeSource, NodeStatus, TreeResponse } from "./types";
 import { deriveNodeStatuses, seedCompletedIds, toDisplayNodes } from "./unlock";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-// No topic-selection UI yet — this mirrors the topic_id used in
-// apps/api/tests/test_trees_endpoint.py, which currently serves the same
-// static sample dataset regardless of which topic_id is requested.
-const TOPIC_ID = "intro-to-ml";
+// Default topic ID for demo purposes
+const DEFAULT_TOPIC_ID = "intro-to-ml";
 
 const nodeTypes = { concept: TreeNode };
 
@@ -34,6 +34,9 @@ const EDGE_STYLE_BY_TARGET_STATUS: Record<NodeStatus, CSSProperties> = {
 };
 
 export default function TreePage() {
+  const searchParams = useSearchParams();
+  const topicId = searchParams.get("topic") || DEFAULT_TOPIC_ID;
+
   const [tree, setTree] = useState<TreeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const completedIds = useTreeProgressStore((state) => state.completedIds);
@@ -46,10 +49,10 @@ export default function TreePage() {
   const [quizError, setQuizError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`${API_URL}/trees/${TOPIC_ID}`)
+    fetch(`${API_URL}/trees/${topicId}`)
       .then((response) => {
         if (!response.ok) {
-          throw new Error(`GET /trees/${TOPIC_ID} failed: ${response.status}`);
+          throw new Error(`GET /trees/${topicId} failed: ${response.status}`);
         }
         return response.json() as Promise<TreeResponse>;
       })
@@ -58,7 +61,7 @@ export default function TreePage() {
         seedCompleted(seedCompletedIds(data.nodes));
       })
       .catch((err: Error) => setError(err.message));
-  }, [seedCompleted]);
+  }, [topicId, seedCompleted]);
 
   const { flowNodes, flowEdges } = useMemo(() => {
     if (!tree) {
@@ -75,12 +78,17 @@ export default function TreePage() {
       data: { label: node.label, status: node.status },
     }));
 
-    const nextFlowEdges: Edge[] = tree.edges.map((edge) => ({
-      id: `${edge.from}->${edge.to}`,
-      source: edge.from,
-      target: edge.to,
-      style: EDGE_STYLE_BY_TARGET_STATUS[statusById.get(edge.to) ?? "locked"],
-    }));
+    const nextFlowEdges: Edge[] = tree.edges.map((edge) => {
+      // Support both from/to and source/target formats
+      const from = edge.from ?? edge.source ?? "";
+      const to = edge.to ?? edge.target ?? "";
+      return {
+        id: `${from}->${to}`,
+        source: from,
+        target: to,
+        style: EDGE_STYLE_BY_TARGET_STATUS[statusById.get(to) ?? "locked"],
+      };
+    });
 
     return { flowNodes: nextFlowNodes, flowEdges: nextFlowEdges };
   }, [tree, completedIds]);
@@ -128,7 +136,7 @@ export default function TreePage() {
     setQuizSubmitting(true);
     setQuizError(null);
     try {
-      const response = await fetch(`${API_URL}/trees/${TOPIC_ID}/nodes/${nodeId}/submit-quiz`, {
+      const response = await fetch(`${API_URL}/trees/${topicId}/nodes/${nodeId}/submit-quiz`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ answers }),
@@ -168,15 +176,7 @@ export default function TreePage() {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-surface text-on-surface">
-      <header className="fixed top-0 z-50 flex h-16 w-full items-center justify-between border-b border-white/10 bg-surface/70 px-margin-mobile shadow-sm backdrop-blur-xl md:px-margin-desktop">
-        <h1 className="text-headline-lg font-bold tracking-tight text-on-surface">Atlas</h1>
-        <button
-          aria-label="Account"
-          className="flex items-center justify-center text-primary transition-colors duration-200 hover:text-secondary"
-        >
-          <CircleUserRound size={24} />
-        </button>
-      </header>
+      <Header />
 
       <div className="flex flex-1 pt-16">
         <nav className="fixed left-0 top-16 z-40 hidden h-[calc(100vh-64px)] w-64 flex-col border-r border-white/10 bg-surface/70 py-6 text-label-caps backdrop-blur-xl md:flex">
@@ -184,7 +184,9 @@ export default function TreePage() {
             <div className="mb-2 flex h-12 w-12 items-center justify-center rounded bg-primary-container/20 text-primary">
               <Workflow size={24} />
             </div>
-            <h2 className="text-headline-lg-mobile text-xl text-on-surface">Mastery Hub</h2>
+            <h2 className="text-headline-lg-mobile text-xl text-on-surface truncate" title={tree?.topic ?? "Mastery Hub"}>
+              {tree?.topic ?? "Mastery Hub"}
+            </h2>
             <p className="text-tertiary">{percentComplete}% Complete</p>
           </div>
           <ul className="flex flex-1 flex-col">

@@ -18,7 +18,10 @@ export function deriveNodeStatuses(
     prerequisitesById.set(node.id, []);
   }
   for (const edge of edges) {
-    prerequisitesById.get(edge.to)?.push(edge.from);
+    // Support both from/to and source/target formats
+    const from = edge.from ?? edge.source ?? "";
+    const to = edge.to ?? edge.target ?? "";
+    prerequisitesById.get(to)?.push(from);
   }
 
   const statuses = new Map<string, NodeStatus>();

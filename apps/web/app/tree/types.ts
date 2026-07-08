@@ -37,12 +37,17 @@ export interface RawTreeNode {
 }
 
 export interface TreeEdge {
-  from: string;
-  to: string;
+  from?: string;
+  to?: string;
+  // Backend may return source/target instead of from/to
+  source?: string;
+  target?: string;
   confidence?: number;
 }
 
 export interface TreeResponse {
+  topic?: string;
+  status?: string;
   nodes: RawTreeNode[];
   edges: TreeEdge[];
 }
