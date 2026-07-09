@@ -70,6 +70,7 @@ def repair_cycles(graph: nx.DiGraph, max_iterations: int = 10) -> tuple[nx.DiGra
 
 def validate_graph(edges: list[dict], max_iterations: int = 10) -> dict:
     """Build a DiGraph from candidate_edges[] and repair any cycles.
+    Then applies transitive reduction to remove redundant edges for a cleaner UI.
 
     Returns {"edges": valid_dag's edges, "dropped_edges": the repair log} —
     the log is what makes this an auditable "self-checking agent" rather
@@ -77,10 +78,15 @@ def validate_graph(edges: list[dict], max_iterations: int = 10) -> dict:
     """
     graph = build_graph(edges)
     valid_graph, dropped_edges = repair_cycles(graph, max_iterations=max_iterations)
+    
+    # Perform transitive reduction to clean up redundant paths 
+    # (e.g. if A->B and B->C, remove A->C)
+    reduced_graph = nx.transitive_reduction(valid_graph)
+    
     return {
         "edges": [
-            {"from": u, "to": v, "confidence": data["confidence"]}
-            for u, v, data in valid_graph.edges(data=True)
+            {"from": u, "to": v, "confidence": valid_graph.edges[u, v]["confidence"]}
+            for u, v in reduced_graph.edges()
         ],
         "dropped_edges": dropped_edges,
     }
