@@ -181,8 +181,8 @@ def submit_quiz(
         if node is None:
             raise HTTPException(status_code=404, detail=f"No node {node_id!r} for topic_id={topic_id!r}")
         quiz = node.get("quiz")
-        if quiz is None:
-            raise HTTPException(status_code=404, detail=f"Node {node_id!r} has no quiz")
+        if not quiz:
+            return {"node_id": node_id, "passed": True, "score": 100, "correct": 0, "total": 0}
         result = grade_quiz(quiz, submission.answers)
         return {"node_id": node_id, **result}
 
@@ -196,8 +196,8 @@ def submit_quiz(
         raise HTTPException(status_code=404, detail=f"No node {node_id!r} for topic_id={topic_id!r}")
 
     quiz = node.get("quiz")
-    if quiz is None:
-        raise HTTPException(status_code=404, detail=f"Node {node_id!r} has no quiz")
+    if not quiz:
+        return {"node_id": node_id, "passed": True, "score": 100, "correct": 0, "total": 0}
 
     result = grade_quiz(quiz, submission.answers)
     return {"node_id": node_id, **result}

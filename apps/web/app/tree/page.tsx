@@ -119,9 +119,6 @@ function TreePageContent() {
       return;
     }
     const rawNode = tree?.nodes.find((candidate) => candidate.id === node.id);
-    if (!rawNode?.quiz) {
-      return;
-    }
     setQuizNodeId(node.id);
     setQuizResult(null);
     setQuizError(null);
@@ -267,7 +264,7 @@ function TreePageContent() {
         </main>
       </div>
 
-      {quizNode?.quiz && (
+      {quizNode && (
         <QuizModal
           nodeLabel={quizNode.title ?? quizNode.name ?? quizNode.id}
           quiz={quizNode.quiz}

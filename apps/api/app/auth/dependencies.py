@@ -3,7 +3,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.models.user import User, UserRole
+from app.models.user import User, UserRole, UserTier
 from app.auth.jwt import verify_token
 
 security = HTTPBearer()
@@ -44,3 +44,21 @@ def get_current_admin(
             detail="Admin access required",
         )
     return current_user
+
+
+def get_current_user_mock(db: Session = Depends(get_db)) -> User:
+    """Mock user for prototyping without frontend auth."""
+    mock_email = "demo@example.com"
+    user = db.query(User).filter(User.email == mock_email).first()
+    if not user:
+        user = User(
+            email=mock_email,
+            password_hash="mock",
+            display_name="Demo User",
+            tier=UserTier.PREMIUM,
+            documents_used=0,
+            skill_trees_created=0,
+        )
+        db.add(user)
+        db.commit()
+    return user

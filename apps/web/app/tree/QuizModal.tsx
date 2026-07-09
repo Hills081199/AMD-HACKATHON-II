@@ -14,7 +14,7 @@ export interface QuizResult {
 
 interface QuizModalProps {
   nodeLabel: string;
-  quiz: Quiz;
+  quiz?: Quiz | null;
   lesson?: NodeLesson;
   submitting: boolean;
   result: QuizResult | null;
@@ -33,7 +33,7 @@ interface QuizModalProps {
 export function QuizModal({ nodeLabel, quiz, lesson, submitting, result, error, onSubmit, onClose }: QuizModalProps) {
   const [answers, setAnswers] = useState<Record<string, number>>({});
 
-  const allAnswered = quiz.questions.every((question) => answers[question.id] !== undefined);
+  const allAnswered = quiz?.questions ? quiz.questions.every((question) => answers[question.id] !== undefined) : false;
   const answeredCount = Object.keys(answers).length;
 
   return (
@@ -99,50 +99,59 @@ export function QuizModal({ nodeLabel, quiz, lesson, submitting, result, error, 
                 <CheckCircle2 size={18} />
                 Checkpoint Quiz
               </h2>
-              <span className="text-xs text-outline">
-                {answeredCount}/{quiz.questions.length} Answered
-              </span>
+              {quiz?.questions && (
+                <span className="text-xs text-outline">
+                  {answeredCount}/{quiz.questions.length} Answered
+                </span>
+              )}
             </div>
-            <div className="space-y-6">
-              {quiz.questions.map((question, questionIndex) => (
-                <div
-                  key={question.id}
-                  className="rounded-lg border border-white/5 bg-surface-container-low p-5 transition-all hover:border-white/10"
-                >
-                  <p className="mb-4 font-medium text-on-surface">
-                    {questionIndex + 1}. {question.question}
-                  </p>
-                  <div className="space-y-2">
-                    {question.options.map((option, optionIndex) => {
-                      const selected = answers[question.id] === optionIndex;
-                      return (
-                        <label
-                          key={optionIndex}
-                          className={`group relative flex cursor-pointer items-start gap-3 overflow-hidden rounded-md border p-3 transition-colors ${
-                            selected
-                              ? "border-secondary/50 bg-secondary/10"
-                              : "border-white/5 bg-background/50 hover:bg-white/5"
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name={question.id}
-                            checked={selected}
-                            onChange={() => setAnswers((prev) => ({ ...prev, [question.id]: optionIndex }))}
-                            className="mt-1 border-outline-variant bg-surface text-secondary focus:ring-secondary focus:ring-offset-background"
-                          />
-                          <span
-                            className={`relative z-10 text-sm ${selected ? "font-medium text-on-surface" : "text-on-surface-variant group-hover:text-on-surface"}`}
+            
+            {!quiz?.questions || quiz.questions.length === 0 ? (
+              <div className="rounded-lg border border-white/5 bg-surface-container-low p-5 text-center">
+                <p className="text-on-surface-variant">No quiz available for this node yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {quiz.questions.map((question, questionIndex) => (
+                  <div
+                    key={question.id}
+                    className="rounded-lg border border-white/5 bg-surface-container-low p-5 transition-all hover:border-white/10"
+                  >
+                    <p className="mb-4 font-medium text-on-surface">
+                      {questionIndex + 1}. {question.question}
+                    </p>
+                    <div className="space-y-2">
+                      {question.options.map((option, optionIndex) => {
+                        const selected = answers[question.id] === optionIndex;
+                        return (
+                          <label
+                            key={optionIndex}
+                            className={`group relative flex cursor-pointer items-start gap-3 overflow-hidden rounded-md border p-3 transition-colors ${
+                              selected
+                                ? "border-secondary/50 bg-secondary/10"
+                                : "border-white/5 bg-background/50 hover:bg-white/5"
+                            }`}
                           >
-                            {option}
-                          </span>
-                        </label>
-                      );
-                    })}
+                            <input
+                              type="radio"
+                              name={question.id}
+                              checked={selected}
+                              onChange={() => setAnswers((prev) => ({ ...prev, [question.id]: optionIndex }))}
+                              className="mt-1 border-outline-variant bg-surface text-secondary focus:ring-secondary focus:ring-offset-background"
+                            />
+                            <span
+                              className={`relative z-10 text-sm ${selected ? "font-medium text-on-surface" : "text-on-surface-variant group-hover:text-on-surface"}`}
+                            >
+                              {option}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             {error && <p className="text-sm font-medium text-error">{error}</p>}
 
