@@ -22,6 +22,7 @@ services:
     environment:
       - SAMPLE_TREE_PATH=/data/generated/demo_tree.generated.json
       - DB_URL=postgresql://postgres:postgres@db:5432/atlas
+      - GPU_WORKER_PATH=/gpu-worker
     depends_on:
       - gpu-worker
       - db

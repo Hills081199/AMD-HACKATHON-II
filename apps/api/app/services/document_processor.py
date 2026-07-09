@@ -1,29 +1,114 @@
 """
-Document processing service.
-Extracts text from documents and generates mastery tree using OpenAI or Gemini AI.
+Document processing service — Pipeline Steps 1-6.
+
+Replaces the old single-LLM-call approach with the full gpu-worker pipeline:
+  Step 1: chunk_document()          [worker/ingest.py]
+  Step 2: extract_raw_concepts()    [worker/concepts.py]
+  Step 3: cluster_concepts()        [worker/concepts.py]
+  Step 4: build_candidate_edges()   [worker/prerequisites.py]
+  Step 5: validate_graph()          [services/graph.py]
+  Step 6: assign_levels()           [services/levels.py]
+
+Step 7 (lesson / quiz generation) is intentionally omitted here — each node
+will get its own API endpoint for on-demand generation later.
 """
+from __future__ import annotations
+
 import os
-import json
+import sys
 import re
-from typing import List, Dict, Any
+import json
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Callable
 
-from openai import OpenAI
+# ---------------------------------------------------------------------------
+# Bootstrap: make gpu-worker importable from inside apps/api.
+# Works in 3 environments:
+#   1. Local dev  : repo/apps/api/app/services/ → parents[4] = repo root
+#   2. Docker     : /app/app/services/          → GPU_WORKER_PATH env var
+#                   or /gpu-worker/ volume mount
+#   3. Any other  : GPU_WORKER_PATH env var
+# ---------------------------------------------------------------------------
+def _find_gpu_worker() -> Path | None:
+    # Strategy 1: explicit env var (most reliable in Docker)
+    env_path = os.getenv("GPU_WORKER_PATH")
+    if env_path:
+        p = Path(env_path)
+        if p.exists():
+            return p
 
-# Document extraction libraries
-import fitz  # PyMuPDF for PDF
-from pptx import Presentation  # python-pptx for PPTX
-from docx import Document as DocxDocument  # python-docx for DOCX
+    # Strategy 2: walk up from this file looking for packages/gpu-worker
+    here = Path(__file__).resolve()
+    for ancestor in here.parents:
+        candidate = ancestor / "packages" / "gpu-worker"
+        if candidate.exists():
+            return candidate
+
+    # Strategy 3: known Docker volume-mount location
+    docker_path = Path("/gpu-worker")
+    if docker_path.exists():
+        return docker_path
+
+    return None
 
 
-# Load configuration
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+_GPU_WORKER = _find_gpu_worker()
+if _GPU_WORKER is not None and str(_GPU_WORKER) not in sys.path:
+    sys.path.insert(0, str(_GPU_WORKER))
+
+from worker.ingest import Chunk, chunk_document  # noqa: E402
+from worker.concepts import (  # noqa: E402
+    OpenAIConceptExtractor,
+    GemmaConceptExtractor,
+    OpenAIEmbedder,
+    SentenceTransformerEmbedder,
+    cluster_concepts,
+    extract_raw_concepts,
+)
+from worker.prerequisites import FireworksClient as PrereqFireworksClient, build_candidate_edges  # noqa: E402
+
+from app.services.graph import validate_graph  # noqa: E402
+from app.services.levels import assign_levels  # noqa: E402
+
+# ---------------------------------------------------------------------------
+# Config
+# ---------------------------------------------------------------------------
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai").lower()
+PREREQ_SIMILARITY_THRESHOLD = float(os.getenv("PREREQ_SIMILARITY_THRESHOLD", "0.6"))
+# P99.5 of embedding distribution → top 0.5% most-similar pairs treated as near-duplicates
+# Matches build_demo_dataset.py default; decrease to merge more aggressively
+DEDUP_PERCENTILE = float(os.getenv("DEDUP_PERCENTILE", "99.5"))
+MIN_DEPTH_WARN = int(os.getenv("MIN_DEPTH_WARN", "3"))
+
+
+def _make_extractor():
+    if LLM_PROVIDER == "openai":
+        return OpenAIConceptExtractor()
+    base_url = os.getenv("GEMMA_BASE_URL", "http://localhost:11434")
+    return GemmaConceptExtractor(base_url=base_url)
+
+
+def _make_embedder():
+    if LLM_PROVIDER == "openai":
+        return OpenAIEmbedder()
+    return SentenceTransformerEmbedder()
+
+
+def _make_prereq_client():
+    # FireworksClient auto-switches to OpenAI when LLM_PROVIDER=openai
+    return PrereqFireworksClient()
+
+
+# ---------------------------------------------------------------------------
+# Legacy text extraction (kept for backward compat / fallback)
+# ---------------------------------------------------------------------------
+import fitz  # PyMuPDF
+from pptx import Presentation
+from docx import Document as DocxDocument
 
 
 def extract_text_from_pdf(file_path: str) -> str:
-    """Extract text content from PDF file."""
     text_parts = []
     try:
         doc = fitz.open(file_path)
@@ -38,7 +123,6 @@ def extract_text_from_pdf(file_path: str) -> str:
 
 
 def extract_text_from_pptx(file_path: str) -> str:
-    """Extract text content from PowerPoint file."""
     text_parts = []
     try:
         prs = Presentation(file_path)
@@ -55,7 +139,6 @@ def extract_text_from_pptx(file_path: str) -> str:
 
 
 def extract_text_from_docx(file_path: str) -> str:
-    """Extract text content from Word document."""
     text_parts = []
     try:
         doc = DocxDocument(file_path)
@@ -68,7 +151,6 @@ def extract_text_from_docx(file_path: str) -> str:
 
 
 def extract_text(file_path: str, file_type: str) -> str:
-    """Extract text from a document based on its type."""
     if file_type == "pdf":
         return extract_text_from_pdf(file_path)
     elif file_type == "pptx":
@@ -79,216 +161,240 @@ def extract_text(file_path: str, file_type: str) -> str:
         raise ValueError(f"Unsupported file type: {file_type}")
 
 
-MASTERY_TREE_PROMPT = """You are an expert educational curriculum designer. Analyze the following learning materials and create a structured mastery tree (skill tree / learning path).
-
-## Input Documents:
-{documents}
-
-## Your Task:
-1. Identify the main topic/subject from the documents
-2. Extract key concepts and skills that need to be learned
-3. Determine prerequisite relationships between concepts
-4. Create a dependency graph where:
-   - Each node is a concept/skill
-   - Edges represent "must learn X before Y" relationships
-   - Nodes are organized into levels (0 = foundational, higher = more advanced)
-
-## Output Format:
-Return a JSON object with this exact structure:
-{{
-  "topic": "Main topic title",
-  "nodes": [
-    {{
-      "id": "n1",
-      "title": "Concept Name",
-      "concept_key": "concept_name_snake_case",
-      "level": 0,
-      "prerequisites": [],
-      "lesson": {{
-        "summary": "2-3 sentence explanation of this concept",
-        "real_world_example": "A practical example of how this concept is used"
-      }},
-      "quiz": {{
-        "pass_threshold": 0.7,
-        "questions": [
-          {{
-            "id": "q1",
-            "type": "mcq",
-            "question": "Question text?",
-            "options": ["Option A", "Option B", "Option C", "Option D"],
-            "answer_index": 0
-          }}
-        ]
-      }},
-      "sources": [
-        {{"doc_id": "doc_001", "title": "Document name", "page": 1}}
-      ]
-    }}
-  ],
-  "edges": [
-    {{"source": "n1", "target": "n2"}}
-  ]
-}}
-
-## Requirements:
-- Create 5-15 nodes depending on content complexity
-- Each node should have 1-3 quiz questions
-- Ensure no circular dependencies
-- Level 0 nodes have no prerequisites
-- Higher level nodes depend on lower level nodes
-- Reference specific document pages in sources when possible
-- Make quiz questions directly answerable from the content
-
-Return ONLY valid JSON, no markdown formatting or code blocks."""
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+_DIFFICULTY_BADGE = {
+    "foundational": "⭐ Foundational",
+    "intermediate": "⭐⭐ Intermediate",
+    "advanced": "⭐⭐⭐ Advanced",
+}
+_LEVEL_XP = {0: 50, 1: 100, 2: 150}
+_LEVEL_MINUTES = {0: 10, 1: 15, 2: 20}
 
 
-def generate_mastery_tree_openai(documents: List[Dict[str, str]]) -> Dict[str, Any]:
-    """
-    Generate a mastery tree from extracted document contents using OpenAI.
-
-    Args:
-        documents: List of dicts with 'filename' and 'content' keys
-
-    Returns:
-        Mastery tree structure with nodes and edges
-    """
-    if not OPENAI_API_KEY:
-        raise ValueError("OPENAI_API_KEY not configured")
-
-    # Format documents for prompt
-    doc_text = ""
-    for i, doc in enumerate(documents):
-        doc_text += f"\n### Document {i+1}: {doc['filename']}\n"
-        doc_text += doc['content'][:50000]  # Limit content per doc
-        doc_text += "\n"
-
-    prompt = MASTERY_TREE_PROMPT.format(documents=doc_text)
-
-    # Call OpenAI API
-    client = OpenAI(api_key=OPENAI_API_KEY)
-
-    response = client.chat.completions.create(
-        model=OPENAI_MODEL,
-        messages=[
-            {
-                "role": "system",
-                "content": "You are an expert educational curriculum designer. Always respond with valid JSON only, no markdown."
-            },
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        temperature=0.3,
-        max_tokens=8192,
-        response_format={"type": "json_object"}
-    )
-
-    # Parse response
-    response_text = response.choices[0].message.content.strip()
-
-    # Clean up response if wrapped in code blocks
-    if response_text.startswith("```"):
-        response_text = re.sub(r'^```json?\n?', '', response_text)
-        response_text = re.sub(r'\n?```$', '', response_text)
-
-    try:
-        tree_data = json.loads(response_text)
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Failed to parse OpenAI response as JSON: {str(e)}\nResponse: {response_text[:500]}")
-
-    # Validate structure
-    if "nodes" not in tree_data:
-        raise ValueError("Generated tree missing 'nodes' field")
-    if "edges" not in tree_data:
-        tree_data["edges"] = []
-    if "topic" not in tree_data:
-        tree_data["topic"] = "Untitled Topic"
-
-    return tree_data
+def _slugify(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
 
 
-def generate_mastery_tree(documents: List[Dict[str, str]]) -> Dict[str, Any]:
-    """
-    Generate a mastery tree from extracted document contents.
-    Uses OpenAI by default, can switch to Gemini via LLM_PROVIDER env var.
-    """
-    # Always use OpenAI for now (can add Gemini back later if needed)
-    return generate_mastery_tree_openai(documents)
+def _xp_reward(level: int) -> int:
+    return _LEVEL_XP.get(level, 150 + (level - 2) * 25)
 
 
-def calculate_node_positions(nodes: List[Dict], edges: List[Dict]) -> List[Dict]:
-    """
-    Calculate x,y positions for nodes based on their level and connections.
-    """
-    # Group nodes by level
-    levels = {}
+def _estimated_minutes(level: int) -> int:
+    return _LEVEL_MINUTES.get(level, 20 + (level - 2) * 5)
+
+
+# ---------------------------------------------------------------------------
+# Position calculation
+# ---------------------------------------------------------------------------
+def calculate_node_positions(nodes: list[dict], edges: list[dict]) -> list[dict]:
+    levels: dict[int, list] = {}
     for node in nodes:
         level = node.get("level", 0)
-        if level not in levels:
-            levels[level] = []
-        levels[level].append(node)
+        levels.setdefault(level, []).append(node)
 
-    # Position nodes
-    y_spacing = 140
-    x_spacing = 200
+    y_spacing = 160
+    x_spacing = 220
 
     for level, level_nodes in levels.items():
         y = level * y_spacing
         total_width = (len(level_nodes) - 1) * x_spacing
         start_x = -total_width / 2
-
         for i, node in enumerate(level_nodes):
-            node["position"] = {
-                "x": start_x + i * x_spacing,
-                "y": y
-            }
+            node["position"] = {"x": start_x + i * x_spacing, "y": y}
 
     return nodes
 
 
-async def process_documents(topic_id: str, file_paths: List[Dict[str, str]]) -> Dict[str, Any]:
+# ---------------------------------------------------------------------------
+# Main pipeline — Steps 1-6
+# ---------------------------------------------------------------------------
+async def process_documents(
+    topic_id: str,
+    file_paths: list[dict[str, str]],
+    progress_callback: Callable[[str, str], None] | None = None,
+) -> dict[str, Any]:
     """
-    Main entry point for document processing.
+    Run the full pipeline (Steps 1-6) over the uploaded documents.
 
     Args:
-        topic_id: UUID of the topic
-        file_paths: List of dicts with 'path', 'filename', 'file_type' keys
+        topic_id: UUID of the topic (used for metadata only).
+        file_paths: List of dicts with keys 'path', 'filename', 'file_type'.
+        progress_callback: Optional callable(step_label, detail) called at
+                           each pipeline step so callers can update the DB.
 
     Returns:
-        Complete mastery tree data
+        Complete mastery tree dict with keys: topic, nodes, edges, …
     """
-    # Extract text from all documents
-    documents = []
-    for file_info in file_paths:
+
+    def _emit(step: str, detail: str = "") -> None:
+        print(f"[Pipeline] {step}: {detail}")
+        if progress_callback:
+            progress_callback(step, detail)
+
+    # ------------------------------------------------------------------
+    # Step 1 — Chunk documents
+    # ------------------------------------------------------------------
+    _emit("chunking", f"Processing {len(file_paths)} document(s)…")
+    chunks: list[Chunk] = []
+    for fi in file_paths:
         try:
-            content = extract_text(
-                file_info['path'],
-                file_info['file_type']
-            )
-            documents.append({
-                'filename': file_info['filename'],
-                'content': content,
-                'doc_id': f"doc_{len(documents)+1:03d}"
-            })
-        except Exception as e:
-            print(f"Warning: Failed to extract {file_info['filename']}: {e}")
+            content = Path(fi["path"]).read_bytes()
+            new_chunks = chunk_document(fi["filename"], content)
+            chunks.extend(new_chunks)
+            _emit("chunking", f"  {fi['filename']} → {len(new_chunks)} chunk(s)")
+        except Exception as exc:
+            print(f"[Pipeline] Warning: failed to chunk {fi['filename']}: {exc}")
 
-    if not documents:
-        raise ValueError("No documents could be processed")
+    if not chunks:
+        raise ValueError("No chunks could be produced from the uploaded documents.")
 
-    # Generate mastery tree
-    tree_data = generate_mastery_tree(documents)
+    _emit("chunking", f"Total {len(chunks)} chunk(s) produced.")
 
-    # Calculate positions
-    tree_data["nodes"] = calculate_node_positions(
-        tree_data["nodes"],
-        tree_data["edges"]
+    # ------------------------------------------------------------------
+    # Step 2 — Extract raw concepts
+    # ------------------------------------------------------------------
+    _emit("extracting", f"Extracting concepts from {len(chunks)} chunk(s)…")
+    extractor = _make_extractor()
+    raw_concepts = extract_raw_concepts(chunks, extractor)
+    _emit("extracting", f"{len(raw_concepts)} raw concept(s) found.")
+
+    # ------------------------------------------------------------------
+    # Step 3 — Cluster / deduplicate
+    # ------------------------------------------------------------------
+    _emit("clustering", f"Clustering {len(raw_concepts)} concept(s) (adaptive P{DEDUP_PERCENTILE} threshold)…")
+    embedder = _make_embedder()
+    canonical_concepts = cluster_concepts(raw_concepts, embedder, dedup_percentile=DEDUP_PERCENTILE)
+    concept_dicts = [c.to_dict() for c in canonical_concepts]
+
+    # Difficulty distribution diagnostic (mirrors build_demo_dataset)
+    diff_counts: dict[str, int] = {}
+    for rc in raw_concepts:
+        diff_counts[rc.difficulty] = diff_counts.get(rc.difficulty, 0) + 1
+    print(f"[Pipeline] Difficulty distribution: {diff_counts}")
+
+    _emit("clustering", f"Reduced to {len(concept_dicts)} canonical concept(s).")
+
+    # ------------------------------------------------------------------
+    # Step 4 — Infer prerequisite edges
+    # ------------------------------------------------------------------
+    _emit("inferring", f"Inferring prerequisites for {len(concept_dicts)} concept(s)…")
+    prereq_client = _make_prereq_client()
+    candidate_edges = build_candidate_edges(
+        concept_dicts,
+        prereq_client,
+        similarity_threshold=PREREQ_SIMILARITY_THRESHOLD,
+    )
+    _emit("inferring", f"{len(candidate_edges)} candidate edge(s) found.")
+
+    # ------------------------------------------------------------------
+    # Step 5 — Validate DAG (cycle detection & repair)
+    # ------------------------------------------------------------------
+    _emit("validating", "Validating dependency graph…")
+    validated = validate_graph(candidate_edges)
+    _emit(
+        "validating",
+        f"Dropped {len(validated['dropped_edges'])} edge(s) to fix cycles. "
+        f"Valid: {len(validated['edges'])} edge(s).",
     )
 
-    # Add metadata
-    tree_data["topic_id"] = topic_id
-    tree_data["generated_at"] = datetime.utcnow().isoformat() + "Z"
-    tree_data["document_count"] = len(documents)
+    # ------------------------------------------------------------------
+    # Step 6 — Assign levels
+    # ------------------------------------------------------------------
+    _emit("leveling", "Assigning concept tiers…")
+    leveled_nodes = assign_levels(validated["edges"], concept_dicts)
+    max_level = max((n["level"] for n in leveled_nodes), default=0)
 
-    return tree_data
+    # IMP-D2: warn if tree is too shallow (mirrors build_demo_dataset)
+    if max_level < MIN_DEPTH_WARN:
+        print(
+            f"[Pipeline] WARNING: Tree depth is only {max_level + 1} level(s) — expected at least {MIN_DEPTH_WARN}.\n"
+            f"  Try: lower PREREQ_SIMILARITY_THRESHOLD (current: {PREREQ_SIMILARITY_THRESHOLD}) "
+            f"or raise PREREQ_MAX_ALL_PAIRS env var."
+        )
+
+    _emit("leveling", f"Tree depth: {max_level + 1} level(s), {len(leveled_nodes)} node(s).")
+
+    # ------------------------------------------------------------------
+    # Build output (Step 7 skipped — quiz/lesson generated per-node later)
+    # ------------------------------------------------------------------
+    _emit("building", "Assembling tree output…")
+
+    # chunk_id → chunk for source lookup
+    chunks_by_id = {c.chunk_id: c for c in chunks}
+
+    # Prerequisite IDs per node
+    prerequisites_by_id: dict[str, list[str]] = {n["id"]: [] for n in leveled_nodes}
+    for edge in validated["edges"]:
+        prerequisites_by_id.setdefault(edge["to"], []).append(edge["from"])
+
+    nodes_out: list[dict] = []
+    for leveled in leveled_nodes:
+        node_id = leveled["id"]
+        node_level = leveled["level"]
+        prereq_ids = prerequisites_by_id.get(node_id, [])
+
+        # Gather unique doc_id/page source references
+        seen_sources: set[str] = set()
+        sources_out: list[dict] = []
+        for src in leveled.get("sources", []):
+            chunk_id = src.get("chunk_id", "")
+            chunk = chunks_by_id.get(chunk_id)
+            if chunk:
+                key = f"{chunk.doc_id}:{chunk.page}"
+                if key not in seen_sources:
+                    seen_sources.add(key)
+                    sources_out.append({"doc_id": chunk.doc_id, "page": chunk.page})
+
+        # concept dict for difficulty
+        concept_for_node = next((c for c in concept_dicts if c["id"] == node_id), {})
+        node_difficulty = concept_for_node.get("difficulty", "intermediate")
+
+        nodes_out.append(
+            {
+                "id": node_id,
+                "title": leveled["name"],
+                "concept_key": _slugify(leveled["name"]),
+                "level": node_level,
+                "difficulty": node_difficulty,
+                "difficulty_badge": _DIFFICULTY_BADGE.get(node_difficulty, "⭐ Unknown"),
+                "xp_reward": _xp_reward(node_level),
+                "estimated_minutes": _estimated_minutes(node_level),
+                "status": leveled["status"],
+                "prerequisites": prereq_ids,
+                "lesson": {
+                    "summary": "",
+                    "real_world_example": "",
+                },
+                "quiz": None,  # generated on-demand later
+                "sources": sources_out,
+                "position": {"x": 0, "y": 0},  # overwritten below
+            }
+        )
+
+    # Calculate positions
+    edges_out = [{"from": e["from"], "to": e["to"]} for e in validated["edges"]]
+    nodes_out = calculate_node_positions(nodes_out, edges_out)
+
+    tier0_ids = [n["id"] for n in nodes_out if n["level"] == 0]
+    locked_ids = [n["id"] for n in nodes_out if n["level"] > 0]
+
+    _emit("done", f"Pipeline complete — {len(nodes_out)} node(s), {len(edges_out)} edge(s).")
+
+    return {
+        "topic": f"Topic {topic_id[:8]}",  # will be overwritten from DB
+        "topic_id": topic_id,
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "document_count": len(file_paths),
+        "nodes": nodes_out,
+        "edges": edges_out,
+        "dropped_edges": validated["dropped_edges"],
+        "user_progress": {
+            "completed_nodes": [],
+            "unlocked_nodes": tier0_ids,
+            "locked_nodes": locked_ids,
+            "total_nodes": len(nodes_out),
+            "percent_complete": 0,
+        },
+    }
