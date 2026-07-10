@@ -1,14 +1,60 @@
 import os
+import uuid
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.types import TypeDecorator, CHAR
+from sqlalchemy.dialects.postgresql import UUID as pgUUID
 
 # Load .env from project root
 load_dotenv(os.path.join(os.path.dirname(__file__), "../../../../.env"))
 
-DATABASE_URL = os.getenv("DB_URL", "postgresql://postgres:postgres@localhost:5432/atlas")
+# Default to SQLite locally for running without Docker
+DATABASE_URL = os.getenv("DB_URL", "sqlite:///./atlas.db")
 
-engine = create_engine(DATABASE_URL)
+class GUID(TypeDecorator):
+    """Platform-independent GUID type.
+    Uses PostgreSQL's UUID type, otherwise uses CHAR(36), storing as string.
+    """
+    impl = CHAR
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'postgresql':
+            return dialect.type_descriptor(pgUUID(as_uuid=True))
+        else:
+            return dialect.type_descriptor(CHAR(36))
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return value
+        elif dialect.name == 'postgresql':
+            return str(value)
+        else:
+            if not isinstance(value, uuid.UUID):
+                try:
+                    return str(uuid.UUID(value))
+                except ValueError:
+                    return str(value)
+            else:
+                return str(value)
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return value
+        else:
+            if not isinstance(value, uuid.UUID):
+                try:
+                    return uuid.UUID(value)
+                except ValueError:
+                    return value
+            return value
+
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+else:
+    engine = create_engine(DATABASE_URL)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()

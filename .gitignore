@@ -33,3 +33,8 @@ data/generated/
 
 # Personal working notes — not for the team repo
 .notes/
+
+# Local databases and venv
+*.db
+venv/
+*.tsbuildinfo
