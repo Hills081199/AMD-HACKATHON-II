@@ -5,3 +5,42 @@
 html, body {
   height: 100%;
 }
+
+@layer components {
+  /* Atlas Learning System — see stitch_atlas_learning_path_graph/atlas_learning_system/DESIGN.md */
+  .glass-panel {
+    background-color: rgba(30, 41, 59, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .glow-active {
+    box-shadow: 0 0 15px rgba(76, 215, 246, 0.2);
+  }
+
+  .bg-graph-pattern {
+    background-image:
+      radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+      radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+    background-position: 0 0, 20px 20px;
+    background-size: 40px 40px;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(11, 19, 38, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}

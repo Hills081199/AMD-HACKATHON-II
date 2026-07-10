@@ -1,0 +1,226 @@
+{
+  "project": "atlas",
+  "last_updated": "2026-07-05",
+  "rules": {
+    "single_active_feature": true,
+    "passing_requires_evidence": true,
+    "do_not_skip_verification": true
+  },
+  "status_legend": {
+    "not_started": "Work has not begun.",
+    "in_progress": "The feature is the current active task.",
+    "blocked": "Work cannot continue until a documented blocker is resolved.",
+    "passing": "Required verification has passed and evidence is recorded."
+  },
+  "features": [
+    {
+      "id": "feat-001",
+      "priority": 1,
+      "area": "gpu-worker",
+      "name": "Document ingest & chunking",
+      "description": "Parse uploaded PDF/PPTX/DOCX files and split into chunks by heading/slide boundary (not a hard character count), producing chunks[] with doc_id, page, and chunk_id. See docs/concept-graph-pipeline.md step 1.",
+      "user_visible_behavior": "POST /ingest on packages/gpu-worker accepts multipart file uploads (PDF/PPTX/DOCX) and returns {\"chunks\": [...]} with doc_id/chunk_id/page/text populated per chunk. /embed is left for feat-002 (embedding + concept extraction).",
+      "dependencies": [],
+      "status": "passing",
+      "verification": [
+        "Run packages/gpu-worker with a sample PDF/PPTX/DOCX from data/ and confirm chunks[] is returned with doc_id, page, chunk_id populated for each chunk.",
+        "Confirm no chunk splits a heading/slide boundary in the middle for the sample set."
+      ],
+      "evidence": [
+        "packages/gpu-worker/worker/ingest.py implements chunk_document() (PDF: one chunk per page via PyMuPDF; PPTX: one chunk per slide via python-pptx; DOCX: one chunk per Heading-delimited section via python-docx).",
+        "packages/gpu-worker/tests/test_ingest.py — 4/4 passed (`python -m pytest tests/`): PDF splits by page, PPTX splits by slide, DOCX splits on heading boundaries without cutting a section in half, unsupported extensions raise ValueError.",
+        "Manually exercised POST /ingest via FastAPI TestClient with a synthetic PDF: 200 response, {'chunks': [{'doc_id': 'sample.pdf', 'chunk_id': 'sample.pdf:p1', 'page': 1, 'text': 'Test ingest endpoint page one.'}]}.",
+        "No real sample PDF/PPTX/DOCX exists in data/ yet (only the mastery-tree sample JSON) — verified against synthetic fixtures built in the test file instead; re-verify against the actual demo dataset once feat-009 picks a document set."
+      ],
+      "notes": "worker/main.py's /embed now implements feat-002. docx has no rendered page numbers, so its `page` field is the 1-indexed heading-delimited section instead — documented in ingest.py."
+    },
+    {
+      "id": "feat-002",
+      "priority": 2,
+      "area": "gpu-worker",
+      "name": "Embedding + concept extraction & clustering",
+      "description": "Vectorize chunks with sentence-transformers (bge-large/e5-large) on ROCm-enabled PyTorch, extract raw_concepts[] per chunk via Gemma (2B/7B) served locally through vLLM-ROCm/Ollama, then cluster/dedupe into canonical_concepts[] via cosine similarity + Louvain clustering (no LLM call needed for dedupe). See docs/concept-graph-pipeline.md steps 2-3.",
+      "user_visible_behavior": "packages/gpu-worker/worker/main.py's /embed endpoint returns canonical_concepts[] (name, short definition, originating chunk_id) instead of the current stub.",
+      "dependencies": ["feat-001"],
+      "status": "passing",
+      "verification": [
+        "Run the sample demo dataset through the endpoint and confirm canonical_concepts[] merges near-duplicate phrasings (e.g. 'gradient descent' vs 'steepest-descent optimization') into one node.",
+        "Confirm Gemma is invoked via a local ROCm/Ollama endpoint, not a hosted API call — this is required for the Best Use of Gemma bonus and AMD platform usage criterion (see docs/brd.md §4.3, §7.3)."
+      ],
+      "evidence": [
+        "packages/gpu-worker/worker/concepts.py implements GemmaConceptExtractor (HTTP client against {GEMMA_BASE_URL}/api/generate — an Ollama-style local endpoint, default http://localhost:11434), SentenceTransformerEmbedder (lazy-loaded bge-large-en-v1.5), and cluster_concepts (cosine similarity + networkx.algorithms.community.louvain_communities, no LLM call).",
+        "packages/gpu-worker/tests/test_concepts.py — 4/4 passed: confirms GemmaConceptExtractor POSTs to '{base_url}/api/generate' (asserted literally, so a regression to a hosted-API URL would fail this test); confirms cluster_concepts merges 'gradient descent' and 'the steepest-descent optimization algorithm' into one canonical concept (shorter name wins) while keeping 'linear regression' separate; confirms extract_raw_concepts aggregates across chunks; confirms empty input returns [].",
+        "packages/gpu-worker/tests/test_main_embed.py — 1/1 passed: exercises the real POST /embed endpoint end-to-end via FastAPI TestClient with fakes swapped in through app.dependency_overrides (get_gemma_extractor, get_embedder), proving the endpoint wiring itself (not just the underlying functions) works.",
+        "Full suite: `python -m pytest tests/` — 9/9 passed (4 feat-001 + 5 feat-002, no regressions). `python -m compileall worker tests` — pass.",
+        "Not run against a live local Gemma/Ollama server or a real sentence-transformers model download — both are behind fakes in the test suite by design (network/GPU-independent tests). Re-verify against a real vLLM-ROCm/Ollama instance on the AMD Developer Cloud box once that's provisioned (see docs/hackathon-scope.md §5 Day-1 ROCm check).",
+        "Prototyping update: added OpenAIConceptExtractor and OpenAIEmbedder (same worker/concepts.py) as LLM_PROVIDER=openai-only stand-ins, so this step's actual extraction/embedding logic could be run for real against GPT-4o mini + text-embedding-3-small before real Gemma/ROCm infra exists (see feature_list.json's project-level note below and progress.md Session 012). Live run against 2 real documents (data/source_docs/linear_algebra_basics.pdf + calculus_for_ml.pdf, 6 chunks): extracted 24 real, sensible raw concepts (e.g. 'Vector', 'Gradient', 'Chain Rule') and embedded them successfully. packages/gpu-worker/tests/test_concepts.py gained 2 new fake-httpx tests for these classes' request/response shapes — 19/19 passed (no regressions). This is NOT a replacement for the real ROCm/Gemma verification still called out above — it's a separate, additional data point that the extraction *logic* (prompting, JSON parsing, RawConcept construction) is sound, obtained cheaply before real Gemma infra is available.",
+        "Real-data finding from that live run: cluster_concepts' dedup similarity_threshold (0.9 default) doesn't always catch same-named duplicate concepts extracted from different chunks when using text-embedding-3-small — e.g. two chunks each independently produced a raw concept named 'Derivative' with different definition wording, and their embedding similarity fell short of 0.9, so both survived into canonical_concepts[] as separate nodes (concept_011 and concept_020) instead of merging. Not a crash, but a real quality gap — worth an eval pass once a stable embedding backend (Gemma-side bge-large, or OpenAI) is settled on, rather than assuming the current threshold transfers across embedding models unchanged."
+      ],
+      "notes": "GEMMA_BASE_URL env var controls the local endpoint (default http://localhost:11434, matching Ollama's default port); no hosted-API fallback is wired in on purpose. Update: CanonicalConcept now also carries `id` (concept_NNN) and `embedding` (cluster centroid), returned from /embed — added while implementing feat-003, which needs both for pair pre-filtering without re-embedding concepts from scratch."
+    },
+    {
+      "id": "feat-003",
+      "priority": 3,
+      "area": "gpu-worker",
+      "name": "Dependency-graph construction (prerequisite inference)",
+      "description": "For pre-filtered concept pairs only (high embedding similarity or nearby co-occurrence), call Fireworks AI (Llama 3.x) to infer directed prerequisite edges with a confidence score. See docs/concept-graph-pipeline.md step 4 and the O(n^2) cost-avoidance note.",
+      "user_visible_behavior": "packages/gpu-worker/worker/main.py's POST /build-graph endpoint takes /embed's concepts[] output and returns {\"edges\": [...]} (candidate_edges[] as from/to/confidence, keyed by concept id) instead of the current NotImplementedError stub.",
+      "dependencies": ["feat-002"],
+      "status": "passing",
+      "verification": [
+        "Confirm the number of Fireworks calls scales with pre-filtered pairs, not all-pairs O(n^2), for the demo dataset.",
+        "Spot-check a few candidate_edges[] against the sample tree in docs/concept-graph-pipeline.md for plausibility."
+      ],
+      "evidence": [
+        "packages/gpu-worker/worker/prerequisites.py implements pre_filter_pairs (cosine similarity over concept embeddings from feat-002's /embed output) and FireworksClient (hosted OpenAI-compatible chat completions — a hosted call is fine here, unlike Gemma extraction, since this isn't the AMD-usage/Gemma-bonus story) and build_candidate_edges.",
+        "packages/gpu-worker/tests/test_prerequisites.py — 4/4 passed. test_pre_filter_pairs_avoids_full_all_pairs_scan directly proves the O(n^2) avoidance: 6 concepts in 3 tight similarity clusters yield C(6,2)=15 possible pairs, but pre_filter_pairs returns exactly the 3 within-cluster pairs. test_build_candidate_edges_only_calls_fireworks_for_prefiltered_pairs asserts the fake Fireworks client is called exactly 3 times (once per pre-filtered pair), not 15.",
+        "packages/gpu-worker/tests/test_main_build_graph.py — 1/1 passed: exercises the real POST /build-graph endpoint via FastAPI TestClient + app.dependency_overrides (no real Fireworks API key/network needed).",
+        "Full suite: `python -m pytest tests/` — 14/14 passed (4 feat-001 + 5 feat-002 + 5 feat-003, no regressions). `python -m compileall worker tests` — pass.",
+        "Not yet spot-checked against the actual sample tree in docs/concept-graph-pipeline.md — that requires a real Fireworks API key and a real concept set from feat-002 run end-to-end; do this once feat-009 picks the demo dataset.",
+        "Not run against a live Fireworks API — FireworksClient is only verified against a monkeypatched httpx.post.",
+        "Prototyping update: FireworksClient's constructor now branches on LLM_PROVIDER=openai (resolving OPENAI_API_KEY/OPENAI_BASE_URL/OPENAI_MODEL, defaulting to gpt-4o-mini, instead of the FIREWORKS_* vars) — safe because Fireworks' hosted API is itself OpenAI-compatible, so infer_direction()'s request/response handling needed zero changes. Live run against 24 real concepts extracted from 2 real documents (with an explicit similarity_threshold=0.6, see below) produced 8 plausible candidate edges via real GPT-4o mini calls, e.g. 'Dot Product -> Matrix Multiplication', 'Gradient -> Direction of Steepest Increase'. packages/gpu-worker/tests/test_prerequisites.py gained 3 new tests for the provider switch (default-Fireworks, switched-to-OpenAI, explicit-args-always-win) — 19/19 passed in the suite overall, no regressions.",
+        "Real-data finding from that live run: pre_filter_pairs' default similarity_threshold (0.35) was implicitly tuned for bge-large-en-v1.5's cosine-similarity distribution and does not transfer to OpenAI's text-embedding-3-small — for 69 real concepts extracted from all 5 source docs, off-diagonal pairwise similarity ranged from -0.01 to 0.96 with a mean of 0.25, so the 0.35 default let through 407 of 2346 possible pairs (17%), which would mean 407 sequential prerequisite-inference calls for a corpus this size — technically correct but impractically slow/expensive, and the actual root cause of what first looked like a hung/runaway process during this session's live testing (see progress.md Session 012). Recalibrated to 0.6 for the smoke test (33 pairs at that threshold on the full set), which completed quickly. This threshold needs to be chosen per embedding backend, not assumed constant — worth an explicit eval once the real embedding model (Gemma-side bge-large vs. OpenAI) is locked in, rather than left at the current bge-large-implied default."
+      ],
+      "notes": "Corrected this feature's `area` from \"api\" to \"gpu-worker\" — docs/architecture.md's Data contract section says gpu-worker produces the candidate graph (including inferred prerequisite edges) and hands it to api, which starts at the self-checking validation loop (feat-004). The original area value was inconsistent with that. CanonicalConcept (feat-002) gained `id` and `embedding` fields to support this feature's pre-filtering — see concepts.py."
+    },
+    {
+      "id": "feat-004",
+      "priority": 4,
+      "area": "api",
+      "name": "Self-checking graph agent (cycle/redundancy repair)",
+      "description": "Build a networkx.DiGraph from candidate_edges[], run nx.simple_cycles(), and repair any cycle found by dropping its lowest-confidence edge (bounded retry loop; force-drop the weakest edge if a cycle survives N iterations). See docs/concept-graph-pipeline.md step 5.",
+      "user_visible_behavior": "The API produces a valid_dag with zero cycles for the demo dataset, with a log of any edges the agent auto-dropped and why.",
+      "dependencies": ["feat-003"],
+      "status": "passing",
+      "verification": [
+        "Feed a deliberately cyclic edge set (e.g. an inverted prerequisite) through the repair loop and confirm it converges to a valid DAG within N iterations.",
+        "Confirm nx.simple_cycles() returns empty on the final graph."
+      ],
+      "evidence": [
+        "apps/api/app/services/graph.py implements build_graph, repair_cycles (bounded loop dropping the lowest-confidence edge per detected cycle, then a force-drop fallback while-loop if a cycle survives max_iterations), and validate_graph. Wired via a new POST /graph/validate endpoint (apps/api/app/routers/graph.py), mounted in app/main.py.",
+        "apps/api/tests/test_graph.py — 5/5 passed: acyclic input passes through unchanged; a 3-node cycle with one inverted-prerequisite edge (a->b->c->a, weakest edge c->a at 0.3) is repaired by dropping exactly that edge, confirmed via nx.simple_cycles() returning empty on the result; two independent 2-cycles with max_iterations=1 (fewer than the 2 drops needed) prove the force-drop fallback actually fires — first drop logged with an 'iteration N' reason, second with the 'force-dropped' reason, final graph still acyclic; validate_graph's combined edges+dropped_edges output shape.",
+        "apps/api/tests/test_graph_endpoint.py — 1/1 passed: exercises the real POST /graph/validate endpoint via FastAPI TestClient (no fakes needed — step 5 is pure networkx logic, no external API calls).",
+        "This is apps/api's first test suite — added apps/api/requirements-dev.txt (pytest) and wired `cd apps/api && python -m pytest tests/` into init.sh/CLAUDE.md.",
+        "Full run: `python -m compileall app tests` (pass); `python -m pytest tests/` — 6/6 passed in apps/api."
+      ],
+      "notes": "This is the 'agentic self-check' the hackathon differentiation story leans on (docs/hackathon-scope.md §3) — the repair-loop logging (dropped_edges[], each with a from/to/confidence/reason) is what makes it auditable rather than a silent filter; don't drop that when this gets consumed downstream. nx.simple_cycles() is exponential in the worst case — fine for the hackathon's sparse, pre-filtered graphs (dozens/hundreds of nodes), but worth watching if the demo dataset ends up much larger or denser."
+    },
+    {
+      "id": "feat-005",
+      "priority": 5,
+      "area": "api",
+      "name": "Topological sort → tiered learning path",
+      "description": "Use nx.topological_generations() (not a plain topological_sort) on the valid_dag to assign each node a level, allowing parallel branches. See docs/concept-graph-pipeline.md step 6.",
+      "user_visible_behavior": "Each node in the final graph JSON has a level field; apps/api/app/routers/trees.py's GET /trees/{topic_id} returns nodes[] + edges[] matching the schema in docs/concept-graph-pipeline.md instead of the current 501 stub.",
+      "dependencies": ["feat-004"],
+      "status": "passing",
+      "verification": [
+        "Confirm every edge's child level is strictly greater than its parent's level (DAG tier invariant) for the demo dataset.",
+        "Confirm GET /trees/{topic_id} returns real data, not the current HTTPException(501)."
+      ],
+      "evidence": [
+        "apps/api/app/services/levels.py implements assign_levels(edges, concepts) — builds a DiGraph seeded with every concept id (not just ones that appear in an edge, so isolated concepts still get a tier-0 node), then groups via nx.topological_generations().",
+        "apps/api/tests/test_levels.py — 4/4 passed: a two-branch-converging graph (mirrors the sample tree in docs/concept-graph-pipeline.md) confirms tiers c1=0, c2=0, c3=1, c4=1, c5=2, and directly asserts the DAG tier invariant (child level > parent level) for every edge; isolated no-edge concepts get tier 0 + unlocked status; non-zero tiers are marked locked; chunk_ids carry through into a sources[] list.",
+        "Wired GET /trees/{topic_id} in apps/api/app/routers/trees.py to serve data/atlas_mastery_tree_sample.json (path resolved from the repo root, overridable via SAMPLE_TREE_PATH) instead of the 501 stub — this was the file's own pre-existing TODO comment's recommendation, not a new design decision.",
+        "apps/api/tests/test_trees_endpoint.py — 1/1 passed: GET /trees/intro-to-ml returns 200 with non-empty nodes[]/edges[], and independently re-checks the DAG tier invariant against the real checked-in sample dataset (not just synthetic test data).",
+        "Full run: apps/api `python -m pytest tests/` — 11/11 passed (5 feat-004 + 6 feat-005, no regressions). packages/gpu-worker re-run — 14/14, no regressions. `python -m compileall app tests` — pass."
+      ],
+      "notes": "GET /trees/{topic_id} is NOT yet wired to the live pipeline (feat-001..004's actual output) — it serves the static sample file regardless of topic_id, exactly as the original TODO comment described (\"For now, load the sample JSON in /data for local dev\"). assign_levels() itself is fully implemented and tested as a pure function; composing it with a live feat-002/feat-004 run into this endpoint is a bigger integration task, likely alongside feat-009 (pre-indexed demo dataset) rather than this feature. Also: data/ is not copied into the Docker image (docker/api.Dockerfile only COPYs apps/api/) — SAMPLE_TREE_PATH env var is the escape hatch for that once containerized deployment needs it."
+    },
+    {
+      "id": "feat-006",
+      "priority": 6,
+      "area": "web",
+      "name": "Skill-tree UI with unlock logic",
+      "description": "Render nodes[]/edges[] with @xyflow/react, grouped into columns by level and colored by status (locked | unlocked | mastered). A node unlocks when every edge pointing into it is mastered.",
+      "user_visible_behavior": "apps/web/app/tree/page.tsx shows an interactive skill tree fetched from data/atlas_mastery_tree_sample.json (dev) or GET {NEXT_PUBLIC_API_URL}/trees/{topic_id}, replacing the current 'TODO: render mastery tree' placeholder.",
+      "dependencies": ["feat-005"],
+      "status": "passing",
+      "verification": [
+        "Load the sample tree JSON in the browser and confirm nodes render grouped by tier with correct lock/unlock coloring.",
+        "Manually mark a Tier-0 node mastered and confirm its children flip from locked to unlocked without a page reload."
+      ],
+      "evidence": [
+        "apps/web/app/tree/{types,unlock,positions,progressStore,TreeNode,page}.{ts,tsx} implement the tree view: unlock.ts derives each node's locked/unlocked/completed status from a single source of truth (a completed-id set) plus edge structure, rather than trusting a possibly-stale status field; positions.ts lays out nodes into columns by level (not trusting a position field, since apps/api's assign_levels() output doesn't have one — only the static sample file does); progressStore.ts (zustand) holds completedIds client-side so completing a node re-renders unlocked children without a page reload; page.tsx fetches GET {NEXT_PUBLIC_API_URL}/trees/{topic_id} and renders via @xyflow/react.",
+        "Fixed a real bug during implementation: a file named services/positions.ts was originally named layout.ts, which collides with Next.js App Router's reserved `layout.ts` filename convention inside app/ and broke the build with a cryptic type error. Renamed to positions.ts.",
+        "`npm run lint` — no warnings/errors. `npm run build` — compiles and type-checks (this caught the layout.ts collision).",
+        "Manually verified live in a browser (not just typecheck/build): started apps/api (uvicorn) and apps/web (next dev), used Playwright (installed temporarily for this check) to load /tree and screenshot it. Confirmed: tier-0 nodes 'Linear Algebra Basics'/'Probability Basics' render green (completed, from the sample data's seed status), 'Loss Functions' renders blue (unlocked, both its prerequisites are already completed), 'Gradient Descent'/'Neural Networks' render grey (locked). Clicked 'Loss Functions' and confirmed it turned green and 'Gradient Descent' flipped grey->blue immediately, with 'Neural Networks' correctly still locked — no page reload, no browser console errors.",
+        "Full run: apps/api 11/11, packages/gpu-worker 14/14 — both re-checked, no regressions from this frontend-only change."
+      ],
+      "notes": "Reconciled the status-naming mismatch flagged in feat-005's handoff: tailwind.config.ts already defines `locked`/`unlocked`/`completed` colors (not `mastered`), matching the sample dataset — so the UI (and unlock.ts) uses \"completed\", and docs/concept-graph-pipeline.md's schema wording (\"mastered\") is the stale one, worth fixing there for consistency. The click-to-complete interaction is a demo-only stand-in for feat-008's real checkpoint-quiz submission — it currently \"passes\" any unlocked node on a single click with no quiz UI at all."
+    },
+    {
+      "id": "feat-007",
+      "priority": 7,
+      "area": "api",
+      "name": "Per-node lesson + quiz + real-world example (agentic RAG)",
+      "description": "For a given node, retrieve only that node's source chunks (via chunk_id/doc_id carried through since step 1), then call Fireworks to generate a lesson, an MCQ checkpoint quiz, and a real-world example, with a self-check that the quiz matches the lesson before returning it.",
+      "user_visible_behavior": "An endpoint returns { lesson, quiz, example, sources } for a node_id, scoped to that node's cited chunks only — not whole-corpus prompting.",
+      "dependencies": ["feat-005"],
+      "status": "passing",
+      "verification": [
+        "Confirm the retrieval set passed to Fireworks is limited to the node's own sources[], not the full corpus.",
+        "Confirm the self-check step rejects/regenerates a quiz that doesn't match its lesson at least once during testing (force a mismatch to verify the guard fires)."
+      ],
+      "evidence": [
+        "apps/api/app/services/teach.py implements FireworksClient (generate() for lesson/quiz/example, check_alignment() for the self-check) and generate_lesson_package() — a bounded retry loop (default max_attempts=2) that regenerates the whole lesson/quiz/example package when check_alignment() reports a mismatch, and always returns a result (flagged via self_check.passed=False rather than raising) if every attempt still fails, so a demo never hard-crashes on a stubborn misalignment.",
+        "apps/api/app/routers/teach.py wires POST /trees/{topic_id}/nodes/{node_id}/lesson via FastAPI Depends(get_fireworks_client) (same dependency-override pattern as gpu-worker's /embed and /build-graph). The endpoint only ever sees the chunks the caller puts in the request body — there is no corpus-wide chunk store wired in yet (see notes below), so scoping is enforced by the request shape itself, not by a filter that could regress.",
+        "apps/api/tests/test_teach.py — 4/4 passed: first-attempt pass-through; test_generate_lesson_package_retrieval_is_scoped_to_only_this_nodes_chunks asserts the exact chunk list sent to FireworksClient.generate() equals the input chunks (nothing added); test_generate_lesson_package_regenerates_on_a_forced_quiz_lesson_mismatch forces check_alignment() to fail on attempt 1 and pass on attempt 2, and asserts generate() was actually called twice (a real regeneration, not just a re-check) and the returned lesson is the v2 (regenerated) one; test_generate_lesson_package_flags_unpassed_self_check_after_exhausting_attempts forces both attempts to fail and confirms the function still returns the last attempt with self_check.passed=False instead of raising.",
+        "apps/api/tests/test_teach_endpoint.py — 1/1 passed: exercises the real POST endpoint via FastAPI TestClient + app.dependency_overrides (no real Fireworks API key/network needed), confirming sources[] in the response strips chunk text down to chunk_id/doc_id/page only (citations, not the raw excerpt).",
+        "Full run: `python -m compileall app tests` (pass); `python -m pytest tests/` in apps/api — 16/16 passed (5 feat-004 + 6 feat-005 + 5 feat-007, no regressions). packages/gpu-worker re-run — 14/14, no regressions. `./init.sh` (web lint/build + both python suites) — all green.",
+        "Prototyping update: FireworksClient here gained the same LLM_PROVIDER=openai switch as feat-003's (see that entry) — 2 new tests in apps/api/tests/test_teach.py (default-Fireworks, switched-to-OpenAI), 25/25 passed in the suite overall, no regressions. Live run: generated real lesson+quiz+example packages for all 24 real concepts from the 2-document live test (see feat-002/003), each grounded in that concept's actual source chunk text — e.g. the 'Vector' node's lesson and quiz were generated purely from linear_algebra_basics.pdf's real page-1 text, not fabricated. All 24/24 passed the self-check on the first attempt (self_check = {passed: true, attempts: 1}), taking ~97s total (~4s/node for the generate+check_alignment round trip) — the first real, live proof that this feature's self-checking agentic-RAG loop (not just its retry-logic unit tests) actually produces sensible, well-formed output end to end."
+      ],
+      "notes": "Scope decision: apps/api has no persisted chunk-text store yet (docs/hackathon-scope.md §5's SQLite/JSON storage line item hasn't been built as its own feature) — chunks only ever existed ephemerally inside a single /ingest→/embed request in gpu-worker. Rather than inventing a chunk store as a side effect of this feature, POST /trees/{topic_id}/nodes/{node_id}/lesson takes the node's own chunks[] (chunk_id/doc_id/page/text) directly in the request body; the caller (eventually feat-009's pre-indexing run, or a future storage layer) is responsible for looking those up by the node's sources[]. This mirrors feat-005's precedent of explicitly punting live-pipeline wiring to a later integration pass. Can proceed in parallel with feat-006 once feat-005 is done — both only need the tiered graph, not the finished UI."
+    },
+    {
+      "id": "feat-008",
+      "priority": 8,
+      "area": "web",
+      "name": "Checkpoint quiz & unlock mechanic",
+      "description": "Wire the MCQ quiz UI to POST /trees/{topic_id}/nodes/{node_id}/submit-quiz; on pass, mark the node mastered and unlock its children per feat-006's unlock logic.",
+      "user_visible_behavior": "Passing a node's quiz in the UI immediately unlocks its downstream nodes, replacing the current 501 stub in apps/api/app/routers/trees.py's submit_quiz.",
+      "dependencies": ["feat-006", "feat-007"],
+      "status": "passing",
+      "verification": [
+        "Submit a passing quiz answer set and confirm the node's status flips to mastered and children flip to unlocked in the UI.",
+        "Submit a failing answer set and confirm the node stays locked/unlocked (not mastered) and children stay locked."
+      ],
+      "evidence": [
+        "apps/api/app/services/quiz.py implements grade_quiz(quiz, answers) — a pure function scoring a submitted answer set against a node's questions[] (id/answer_index) and pass_threshold, returning {score, correct, total, passed}; a missing answer for a question counts as wrong rather than raising.",
+        "apps/api/app/routers/trees.py's POST /trees/{topic_id}/nodes/{node_id}/submit-quiz replaces the 501 stub: loads the tree (shared _load_tree() helper, refactored out of GET /trees/{topic_id}), looks up the node's quiz by node_id (404 if the node doesn't exist), and grades it via grade_quiz(). Does not persist status server-side — apps/api still has no storage layer (same scope note as feat-007) — so the response is graded fresh each call; apps/web's progressStore (feat-006) remains the source of truth for which nodes are completed, and only calls markCompleted() when this endpoint reports passed=true.",
+        "apps/api/tests/test_quiz.py — 4/4 passed: all-correct passes; a below-threshold set fails; an unanswered question counts as wrong (not an error); a single-question quiz meeting the threshold exactly still passes (boundary case).",
+        "apps/api/tests/test_trees_submit_quiz_endpoint.py — 3/3 passed against the real checked-in sample dataset (node n3 'Loss Functions', question q_n3_1, answer_index 1, pass_threshold 0.7): correct answer -> passed=true/score=1.0; wrong answer -> passed=false/score=0.0; unknown node_id -> 404.",
+        "apps/web: added app/tree/QuizModal.tsx (renders the node's quiz.questions[] as radio-button MCQs, disables Submit until every question is answered, shows a pass/fail message inline). Extended types.ts (Quiz/QuizQuestion, RawTreeNode.quiz, DisplayNode.quiz) and unlock.ts (carries quiz through toDisplayNodes()) so the quiz definition reaches the click handler. page.tsx's handleNodeClick now opens the modal for an unlocked node with a quiz (instead of feat-006's demo-only 'any click passes it' stand-in); submitQuiz() POSTs to the new endpoint and calls markCompleted() only when passed is true, reusing feat-006's existing progressStore/unlock.ts unchanged.",
+        "`npm run lint` (clean) and `npm run build` (compiles + type-checks) after the frontend changes.",
+        "Manually verified live in a browser (not just typecheck/build): started apps/api (uvicorn) and apps/web (next dev — port 3001, 3000 was already taken), used Playwright (installed temporarily, then removed) to drive /tree. Found and fixed a real bug in the process: an orphaned uvicorn process from an earlier session was still bound to port 8000 serving the pre-feat-008 code, so the first submit-quiz request 501'd even though the source was already correct — killed the stale process, started a fresh one, and confirmed the fix via curl before re-testing in the browser. Clicked the unlocked 'Loss Functions' node to open its quiz modal; submitted the wrong option first and confirmed 'Not quite — 0/1 correct. Try again.' with the modal staying open and the tree unchanged; then submitted the correct option and confirmed 'Passed! (1/1 correct)'. Closed the modal and confirmed (screenshot-verified) 'Loss Functions' turned green (completed) and 'Gradient Descent' flipped from grey/locked to blue/unlocked immediately, with 'Neural Networks' correctly still locked — no page reload, no console errors.",
+        "Full run: apps/api 23/23 (5 feat-004 + 6 feat-005 + 5 feat-007 + 4 feat-008-quiz + 3 feat-008-endpoint, no regressions), packages/gpu-worker 14/14. `./init.sh` end-to-end — all green."
+      ],
+      "notes": "Grading is stateless/re-derived per request (no DB), consistent with feat-006's design of trusting the graph structure + a client-side completed-id set over any server-persisted status field. A real storage layer (to persist completed status server-side, e.g. for multi-device/session continuity) is still open — same gap flagged in feat-007's notes, worth addressing together in a future storage-layer feature rather than per-endpoint."
+    },
+    {
+      "id": "feat-009",
+      "priority": 9,
+      "area": "data",
+      "name": "Pre-indexed, deterministic demo dataset",
+      "description": "Run the full feat-001..feat-007 pipeline once, offline, on the chosen demo document set (10-30 docs, one domain) and save the static output so the live demo doesn't depend on Fireworks latency/availability during judging.",
+      "user_visible_behavior": "data/atlas_mastery_tree_sample.json (or a topic-specific equivalent) is real pipeline output, not a hand-written placeholder, and the demo path loads it without calling Fireworks live.",
+      "dependencies": ["feat-007"],
+      "status": "blocked",
+      "verification": [
+        "Run the demo end-to-end offline (no network calls to Fireworks) using only the pre-indexed JSON and confirm the full upload→graph→play loop still works.",
+        "Confirm the checked-in JSON matches the schema in docs/concept-graph-pipeline.md."
+      ],
+      "evidence": [
+        "Built the real pipeline runner: scripts/build_demo_dataset.py's build_dataset() composes feat-001's chunk_document() through feat-007's generate_lesson_package() — every step calls the same already-unit-tested functions the live services use (worker.ingest, worker.concepts, worker.prerequisites, app.services.graph, app.services.levels, app.services.teach); this script only orchestrates them and assembles the final nodes[]/edges[] schema from docs/concept-graph-pipeline.md.",
+        "Authored a real (not placeholder/lorem-ipsum) 5-document intro-ML demo set via scripts/generate_sample_docs.py, checked in at data/source_docs/ (linear_algebra_basics.pdf, calculus_for_ml.pdf, probability_for_ml.docx, ml_lecture_slides.pptx, deep_learning_intro.docx) — genuinely accurate short explanations of the same topics as docs/concept-graph-pipeline.md's own sample tree (vectors/matrices/dot products, derivatives/gradients/chain rule, random variables/distributions/expectation, loss functions/gradient descent/evaluation/overfitting, neural network architecture/activations/backprop).",
+        "Ran feat-001's chunk_document() for real (no fakes) against these real files: 16 chunks total across 5 docs (3 PDF pages, 3 DOCX heading-sections, 3 DOCX heading-sections, 4 PPTX slides, 3 DOCX heading-sections), one chunk per page/slide/heading, confirmed no chunk splits a boundary mid-way.",
+        "scripts/tests/test_build_demo_dataset.py — 3/3 passed: confirms the checked-in source_docs directory is real and non-empty; feeds the real chunks[] (from the line above) through build_dataset() with fakes injected only for Gemma/embedding/Fireworks (same fakes-for-external-services pattern as every other feature's tests — no live credentials needed for this part), and asserts the DAG tier invariant (child level > parent level, checked both directly and via nx.simple_cycles() == []) plus that every node ends up with a non-empty lesson, quiz, and sources[] that trace back only to real ingested chunk doc_ids (nothing fabricated).",
+        "Confirmed the CLI's credential guards actually fire: running `python scripts/build_demo_dataset.py` with neither env var set exits 1 with 'GEMMA_BASE_URL is not set...'; with only GEMMA_BASE_URL set, exits 1 with 'FIREWORKS_API_KEY is not set...' — the script refuses to substitute fake output for the real run, which is the whole point of feat-009 (a fake-LLM placeholder pretending to be real pipeline output would be a worse version of the hand-written placeholder it's meant to replace).",
+        "`python -m compileall scripts` (pass). Re-ran apps/api (23/23), packages/gpu-worker (14/14), and apps/web lint/build — all unaffected, no regressions from this addition.",
+        "NOT run for real against Gemma/Fireworks specifically: this environment has neither a reachable local Gemma/Ollama server (GEMMA_BASE_URL) nor a FIREWORKS_API_KEY (confirmed: no local Ollama on :11434, no relevant env vars set) — this is the same Day-1 ROCm/credentials risk flagged in docs/hackathon-scope.md §5 and already noted against feat-002/003/007. The actual checked-in demo dataset (data/atlas_mastery_tree_sample.json, still the hand-written file from the original harness scaffold) has NOT been replaced — deliberately: apps/api/tests/test_trees_endpoint.py and test_trees_submit_quiz_endpoint.py hardcode assumptions about that file's specific node/question IDs (n3, q_n3_1, etc.), and swapping in real pipeline output (concept_NNN-style IDs) would need those tests updated in the same pass as a real run, not before one exists. scripts/build_demo_dataset.py defaults its --output to data/generated/ (gitignored), never overwriting the hand-written sample.",
+        "Prototyping update: scripts/build_demo_dataset.py's CLI now also respects LLM_PROVIDER=openai (constructs OpenAIConceptExtractor/OpenAIEmbedder/OpenAI-configured FireworksClients instead, requiring only OPENAI_API_KEY) and gained a --prereq-similarity-threshold flag (default 0.35, matching build_candidate_edges' own default) so the pre-filter threshold can be recalibrated per embedding backend — see feat-003's evidence for why. This means the script has now genuinely run this project's actual, real, feat-009-shipped orchestration code against a live LLM (not just my own ad hoc scratch scripts) — see feat-002/003/007's evidence for the concrete live results (24 real concepts, 8 real candidate edges, 24 real lesson/quiz packages, all self-checks passing). This is real end-to-end validation of the pipeline's *composition logic*, but still not the real submission path (Gemma+Fireworks) — see notes below."
+      ],
+      "notes": "Blocked on real infrastructure, not on missing code: once a machine has GEMMA_BASE_URL (a running local Gemma/Ollama server, per docs/hackathon-scope.md §5's Day-1 ROCm check) and FIREWORKS_API_KEY available, running `python scripts/build_demo_dataset.py` produces the real pre-indexed dataset. Unblocking this feature to 'passing' additionally requires: (1) running it for real, (2) deciding whether/how to promote the generated output to replace data/atlas_mastery_tree_sample.json, and (3) updating apps/api/tests/test_trees_endpoint.py + test_trees_submit_quiz_endpoint.py's hardcoded node/question IDs to match whatever the real run produces, in the same pass — don't swap the sample file without also fixing those tests, or they'll start failing for the wrong reason. This is the credit-runway and live-demo-reliability safeguard called out in docs/brd.md §II and docs/hackathon-scope.md §6 (Day 5). Update: an LLM_PROVIDER=openai prototyping path now exists (see progress.md Session 012) that runs this exact same script/pipeline against GPT-4o mini instead, specifically to validate the pipeline works end-to-end while waiting on real ROCm/Gemma/Fireworks provisioning. That path is explicitly NOT a substitute for unblocking this feature — the AMD-usage and Best-of-Gemma judging criteria (docs/brd.md §4.3, §7.3) require the real Gemma/ROCm run for the actual submission — but it de-risked the pipeline's *logic* considerably (24 real concepts and 8 real prerequisite edges extracted correctly, 24/24 real lesson/quiz self-checks passing) ahead of that infra being available, and surfaced two concrete, real tuning findings (see feat-002 and feat-003's evidence) worth addressing before the real run regardless of which embedding/LLM backend is used."
+    }
+  ]
+}

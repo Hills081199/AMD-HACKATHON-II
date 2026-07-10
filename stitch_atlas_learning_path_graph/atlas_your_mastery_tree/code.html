@@ -1,0 +1,326 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Atlas Dashboard - Skill Tree</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-primary": "#1000a9",
+                      "surface-tint": "#c0c1ff",
+                      "surface-variant": "#2d3449",
+                      "on-primary-fixed": "#07006c",
+                      "tertiary-container": "#00885d",
+                      "surface": "#0b1326",
+                      "on-tertiary": "#003824",
+                      "tertiary": "#4edea3",
+                      "on-primary-fixed-variant": "#2f2ebe",
+                      "inverse-on-surface": "#283044",
+                      "error": "#ffb4ab",
+                      "surface-bright": "#31394d",
+                      "background": "#0b1326",
+                      "outline-variant": "#464554",
+                      "on-primary-container": "#0d0096",
+                      "on-surface": "#dae2fd",
+                      "surface-container-low": "#131b2e",
+                      "primary-container": "#8083ff",
+                      "primary": "#c0c1ff",
+                      "secondary": "#4cd7f6",
+                      "on-secondary-fixed": "#001f26",
+                      "secondary-container": "#03b5d3",
+                      "on-surface-variant": "#c7c4d7",
+                      "surface-container-highest": "#2d3449",
+                      "primary-fixed-dim": "#c0c1ff",
+                      "on-secondary-container": "#00424e",
+                      "outline": "#908fa0",
+                      "tertiary-fixed-dim": "#4edea3",
+                      "on-secondary": "#003640",
+                      "on-error": "#690005",
+                      "on-tertiary-fixed": "#002113",
+                      "surface-dim": "#0b1326",
+                      "on-secondary-fixed-variant": "#004e5c",
+                      "inverse-primary": "#494bd6",
+                      "tertiary-fixed": "#6ffbbe",
+                      "error-container": "#93000a",
+                      "surface-container-lowest": "#060e20",
+                      "secondary-fixed-dim": "#4cd7f6",
+                      "primary-fixed": "#e1e0ff",
+                      "surface-container-high": "#222a3d",
+                      "on-background": "#dae2fd",
+                      "secondary-fixed": "#acedff",
+                      "inverse-surface": "#dae2fd",
+                      "surface-container": "#171f33",
+                      "on-tertiary-container": "#000703",
+                      "on-error-container": "#ffdad6",
+                      "on-tertiary-fixed-variant": "#005236"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "base-unit": "4px",
+                      "container-max": "1280px",
+                      "margin-desktop": "40px",
+                      "margin-mobile": "16px",
+                      "gutter": "24px"
+              },
+              "fontFamily": {
+                      "headline-lg-mobile": [
+                              "Inter"
+                      ],
+                      "stats-mono": [
+                              "JetBrains Mono"
+                      ],
+                      "headline-lg": [
+                              "Inter"
+                      ],
+                      "display-lg": [
+                              "Inter"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "label-caps": [
+                              "JetBrains Mono"
+                      ]
+              },
+              "fontSize": {
+                      "headline-lg-mobile": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "stats-mono": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "display-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "56px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-caps": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "fontWeight": "700"
+                              }
+                      ]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        .glass-card {
+            background-color: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .node-completed {
+            background-color: #4edea3; /* tertiary */
+            color: #003824; /* on-tertiary */
+            border: 1px solid #4edea3;
+        }
+        
+        .node-active {
+            border: 1px solid #4cd7f6; /* secondary */
+            background-color: rgba(76, 215, 246, 0.1);
+            box-shadow: 0 0 15px rgba(76, 215, 246, 0.2);
+            color: #dae2fd;
+        }
+        
+        .node-locked {
+            background-color: transparent;
+            border: 1px dashed rgba(255, 255, 255, 0.4);
+            color: rgba(255, 255, 255, 0.4);
+        }
+        
+        .connector-line {
+            stroke: rgba(255, 255, 255, 0.4);
+            stroke-width: 2;
+            fill: none;
+        }
+        
+        .connector-line-active {
+            stroke: #4cd7f6; /* secondary */
+            filter: drop-shadow(0 0 5px rgba(76, 215, 246, 0.5));
+            stroke-width: 2;
+            fill: none;
+        }
+        
+        .connector-line-completed {
+            stroke: #4edea3; /* tertiary */
+            stroke-width: 2;
+            fill: none;
+        }
+        
+        /* Layout overrides for side nav and main content */
+        body {
+            background-color: #0b1326;
+            color: #dae2fd;
+        }
+    </style>
+</head>
+<body class="font-body-md text-body-md bg-background text-on-background min-h-screen flex flex-col antialiased">
+<!-- TopNavBar -->
+<header class="bg-surface/70 backdrop-blur-xl fixed top-0 w-full z-50 border-b border-white/10 shadow-sm flex justify-between items-center px-margin-desktop h-16">
+<div class="flex items-center gap-4">
+<h1 class="font-headline-lg text-headline-lg font-bold text-on-surface tracking-tight">Atlas</h1>
+</div>
+<div class="flex-1 flex justify-start pl-8 hidden md:flex">
+<!-- Search bar on left placeholder -->
+</div>
+<div class="flex items-center gap-4 text-primary">
+<button aria-label="account_circle" class="hover:text-secondary transition-colors duration-200">
+<span class="material-symbols-outlined" data-icon="account_circle">account_circle</span>
+</button>
+<img alt="User avatar" class="w-8 h-8 rounded-full border border-white/10 object-cover" data-alt="A professional user avatar image suitable for a high-tech learning dashboard, maintaining the dark theme aesthetic with cool lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCr7GkGb_C-jD6HjvHhAozE8AzxF7JHFndXpwoQqtyCuoqJufhDCZsqChfd7tCsZabZEiN4JegRXSug1njLuruUI9Ii9Ha9xQrASB_6aaZ03l9suE45vvWvz99dZigyhu6fiaxtFK8VzOFmLlSA2mf4yK7JdrsH_seLcpj8gIgLnB20e60CRwHo_uNUoKZFpbo4RBcoPPP5T0WZIrLTrge0WntG4U5pvKvjCjw54c8ATRGhJr-eaYeKbA">
+</div>
+</header>
+<div class="flex flex-1 pt-16 h-screen overflow-hidden">
+<!-- SideNavBar -->
+<nav class="bg-surface/70 backdrop-blur-xl text-primary font-label-caps text-label-caps fixed left-0 top-16 h-[calc(100vh-64px)] w-64 border-r border-white/10 shadow-none flex flex-col py-6 hidden md:flex z-40">
+<div class="px-6 mb-8 flex flex-col gap-2">
+<img alt="Learning Progress Icon" class="w-12 h-12 rounded object-cover mb-2" data-alt="A small icon representing learning progress, abstract and high-tech, fitting a dark mode modern UI." src="https://lh3.googleusercontent.com/aida-public/AB6AXuChNB_WhGhDSTMQBaWly5Tv6AmI-WH1aL5ZQlPjYeiqMIrXzAK2c6S2k-XK96cIjKz_XqvKAbHhT5X8VzFnytV6dl_eb6RsadVaMO3xzDO1KsZqWAoEOiUlZQCqj1hUsddp6u5a3UFOe1T9E6hIaIEau7U0T9DC3d_Hfg287FP3Zac6lWzkVSZLyLtBiqm-xGhEqE_XOG8u9J1MWods22DUxdupqamZm4pA69wfhXDKsudK98wIFp4JqQ">
+<h2 class="font-headline-lg text-headline-lg text-on-surface text-xl">Mastery Hub</h2>
+<p class="text-tertiary">82% Complete</p>
+</div>
+<ul class="flex flex-col flex-1">
+<li>
+<a class="flex items-center gap-4 bg-primary-container/20 text-secondary border-r-2 border-secondary px-6 py-3 transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="account_tree">account_tree</span>
+                        Learning Path
+                    </a>
+</li>
+<li>
+<a class="flex items-center gap-4 text-on-surface-variant px-6 py-3 hover:bg-white/5 hover:text-on-surface transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+                        Documents
+                    </a>
+</li>
+<li>
+<a class="flex items-center gap-4 text-on-surface-variant px-6 py-3 hover:bg-white/5 hover:text-on-surface transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+                        Settings
+                    </a>
+</li>
+</ul>
+<div class="px-6 mt-auto">
+<button class="w-full py-2 border border-outline rounded text-secondary hover:bg-white/5 transition-all">Upgrade to Pro</button>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-1 md:ml-64 relative overflow-auto p-margin-mobile md:p-margin-desktop bg-surface-container-lowest">
+<div class="max-w-container-max mx-auto h-full flex flex-col md:flex-row gap-gutter">
+<!-- Central Area: Interactive Skill Tree -->
+<div class="flex-1 relative min-h-[600px] flex items-center justify-center">
+<!-- SVG for connector lines -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 1;">
+<!-- Connectors -->
+<path class="connector-line-completed" d="M 250, 150 Q 250, 300 450, 300"></path>
+<path class="connector-line-active" d="M 450, 300 Q 650, 300 650, 150"></path>
+<path class="connector-line" d="M 450, 300 Q 450, 500 250, 500"></path>
+</svg>
+<!-- Nodes Container -->
+<div class="relative w-full h-full" style="z-index: 2;">
+<!-- Node: Foundations of Calculus (Completed) -->
+<div class="absolute top-[100px] left-[100px] md:top-[120px] md:left-[150px] w-48 p-4 rounded-xl flex flex-col items-center justify-center text-center node-completed shadow-lg transition-transform hover:scale-105 cursor-pointer">
+<span class="material-symbols-outlined mb-2 text-2xl" data-icon="check_circle">check_circle</span>
+<span class="font-label-caps text-label-caps">Foundations of Calculus</span>
+</div>
+<!-- Node: Derivatives (Active) -->
+<div class="absolute top-[250px] left-[350px] md:top-[270px] md:left-[350px] w-48 p-4 rounded-xl flex flex-col items-center justify-center text-center node-active transition-transform hover:scale-105 cursor-pointer">
+<span class="material-symbols-outlined mb-2 text-2xl" data-icon="trending_up">trending_up</span>
+<span class="font-label-caps text-label-caps">Derivatives</span>
+</div>
+<!-- Node: Integrals (Locked) -->
+<div class="absolute top-[100px] left-[600px] md:top-[120px] md:left-[550px] w-48 p-4 rounded-xl flex flex-col items-center justify-center text-center node-locked transition-transform hover:scale-105 cursor-pointer">
+<span class="material-symbols-outlined mb-2 text-2xl" data-icon="lock">lock</span>
+<span class="font-label-caps text-label-caps">Integrals</span>
+</div>
+<!-- Node: Gradient Descent (Locked) -->
+<div class="absolute top-[450px] left-[100px] md:top-[470px] md:left-[150px] w-48 p-4 rounded-xl flex flex-col items-center justify-center text-center node-locked transition-transform hover:scale-105 cursor-pointer">
+<span class="material-symbols-outlined mb-2 text-2xl" data-icon="lock">lock</span>
+<span class="font-label-caps text-label-caps">Gradient Descent</span>
+</div>
+</div>
+</div>
+<!-- Right Sidebar: Progress & Info -->
+<aside class="w-full md:w-80 flex flex-col gap-gutter shrink-0" style="z-index: 10;">
+<!-- Progress Card -->
+<div class="glass-card rounded-xl p-6 flex flex-col gap-4">
+<h3 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Path Progress</h3>
+<div class="flex items-end gap-2">
+<span class="font-display-lg text-display-lg text-tertiary">25%</span>
+<span class="font-stats-mono text-stats-mono text-on-surface-variant pb-2">Completed</span>
+</div>
+<!-- Progress Bar -->
+<div class="w-full h-2 bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-tertiary w-1/4 rounded-full"></div>
+</div>
+</div>
+<!-- Source Documents Card -->
+<div class="glass-card rounded-xl p-6 flex flex-col gap-4 flex-1">
+<h3 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface flex items-center justify-between">
+                            Source Documents
+                            <button class="text-secondary hover:text-white transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="add">add</span>
+</button>
+</h3>
+<div class="flex flex-col gap-3 font-stats-mono text-stats-mono">
+<div class="p-3 bg-surface-container-low rounded border border-white/5 flex items-center gap-3 hover:border-secondary/50 cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-primary text-xl" data-icon="picture_as_pdf">picture_as_pdf</span>
+<div class="flex flex-col overflow-hidden">
+<span class="text-on-surface truncate">Calculus_Vol1.pdf</span>
+<span class="text-outline text-xs">Uploaded 2d ago</span>
+</div>
+</div>
+<div class="p-3 bg-surface-container-low rounded border border-white/5 flex items-center gap-3 hover:border-secondary/50 cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-primary text-xl" data-icon="description">description</span>
+<div class="flex flex-col overflow-hidden">
+<span class="text-on-surface truncate">Lecture_Notes_Week3.docx</span>
+<span class="text-outline text-xs">Uploaded 5h ago</span>
+</div>
+</div>
+</div>
+</div>
+</aside>
+</div>
+</main>
+</div>
+</body></html>
