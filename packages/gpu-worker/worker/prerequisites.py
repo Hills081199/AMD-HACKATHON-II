@@ -24,7 +24,7 @@ import os
 import numpy as np
 
 # IMP-A2: when n ≤ this, skip similarity filter and check all pairs
-_MAX_ALL_PAIRS = int(os.environ.get("PREREQ_MAX_ALL_PAIRS", "60"))
+_MAX_ALL_PAIRS = int(os.environ.get("PREREQ_MAX_ALL_PAIRS", "15"))
 
 
 class FireworksClient:
@@ -38,7 +38,7 @@ class FireworksClient:
         api_key: str | None = None,
         base_url: str | None = None,
         model: str | None = None,
-        timeout: float = 30.0,
+        timeout: float = 120.0,
     ):
         # LLM_PROVIDER=openai is a prototyping-only switch (see
         # docs/hackathon-scope.md §5) to validate this step against GPT-4o
@@ -56,7 +56,7 @@ class FireworksClient:
                 base_url or os.environ.get("FIREWORKS_BASE_URL", "https://api.fireworks.ai/inference/v1")
             ).rstrip("/")
             self.model = model or os.environ.get(
-                "FIREWORKS_MODEL", "accounts/fireworks/models/llama-v3p1-8b-instruct"
+                "FIREWORKS_MODEL", "accounts/fireworks/models/deepseek-v4-pro"
             )
         self.timeout = timeout
 
@@ -103,7 +103,7 @@ class FireworksClient:
             f"Concept A: {concept_a['name']} [{diff_a}] — {concept_a['definition']}\n"
             f"Concept B: {concept_b['name']} [{diff_b}] — {concept_b['definition']}\n"
             + difficulty_hint
-            + "\nReturn strict JSON: {\"direction\": \"a_before_b\" | \"b_before_a\" | \"none\", "
+            + "\nReturn strict JSON only — no prose, no markdown, no code fences: {\"direction\": \"a_before_b\" | \"b_before_a\" | \"none\", "
             '"confidence": <0.0-1.0>, "reasoning": "<one sentence>"}. '
             '"none" means they can be learned independently or in either order.'
         )
@@ -116,12 +116,18 @@ class FireworksClient:
                     json={
                         "model": self.model,
                         "messages": [{"role": "user", "content": prompt}],
-                        "response_format": {"type": "json_object"},
                     },
                     timeout=self.timeout,
                 )
                 response.raise_for_status()
                 content = response.json()["choices"][0]["message"]["content"]
+                
+                content = content.strip()
+                if content.startswith("```"):
+                    content = content.split("```")[1]
+                    if content.startswith("json"):
+                        content = content[4:]
+                
                 result = json.loads(content)
                 if result.get("direction") in ("a_before_b", "b_before_a", "none"):
                     return result
@@ -169,10 +175,14 @@ def pre_filter_pairs(
 
     # Strategy 1: Semantic similarity
     vectors = np.asarray([concept["embedding"] for concept in concepts], dtype=float)
+    print("concepts: ",concepts)
+    print("vectors: ",vectors)
     norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+    print("norms: ",norms)
     norms[norms == 0] = 1.0
     unit_vectors = vectors / norms
     similarity = unit_vectors @ unit_vectors.T
+    print("similarity: ",similarity)
 
     for i in range(n):
         for j in range(i + 1, n):
@@ -237,11 +247,12 @@ def build_candidate_edges(
         i, j = pair
         concept_a, concept_b = concepts[i], concepts[j]
         result = fireworks.infer_direction(concept_a, concept_b, all_concepts=concepts)
+        print(f"  [Step 4] Checking {concept_a.get('name')} -> {concept_b.get('name')}: {result}")
         direction = result.get("direction")
         confidence = float(result.get("confidence", 0.0))
         return concept_a, concept_b, direction, confidence
 
-    max_workers = int(os.environ.get("PREREQ_MAX_WORKERS", "10"))
+    max_workers = int(os.environ.get("PREREQ_MAX_WORKERS", "30"))
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         for concept_a, concept_b, direction, confidence in executor.map(_check_pair, pairs):
             if confidence < min_confidence:

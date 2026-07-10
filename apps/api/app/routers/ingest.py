@@ -1,5 +1,6 @@
 import os
 import asyncio
+import tempfile
 from typing import List
 from datetime import datetime
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, BackgroundTasks
@@ -13,8 +14,8 @@ from app.services.document_processor import process_documents, extract_text
 
 router = APIRouter()
 
-# Upload directory
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/tmp/atlas_uploads")
+# Upload directory — works on both Windows and Linux
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", os.path.join(tempfile.gettempdir(), "atlas_uploads"))
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # Allowed file types

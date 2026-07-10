@@ -136,7 +136,7 @@ def test_fireworks_client_defaults_to_fireworks_when_llm_provider_unset(monkeypa
     client = FireworksClient()
 
     assert client.base_url == "https://api.fireworks.ai/inference/v1"
-    assert client.model == "accounts/fireworks/models/llama-v3p1-8b-instruct"
+    assert client.model == "accounts/fireworks/models/deepseek-v3p1"
     assert client.api_key == "fw-key"
 
 

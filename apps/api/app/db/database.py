@@ -9,8 +9,9 @@ from sqlalchemy.dialects.postgresql import UUID as pgUUID
 # Load .env from project root
 load_dotenv(os.path.join(os.path.dirname(__file__), "../../../../.env"))
 
-# Default to SQLite locally for running without Docker
-DATABASE_URL = os.getenv("DB_URL", "sqlite:///./atlas.db")
+# Default to SQLite (no server needed). Override with DB_URL in .env for Postgres.
+_default_db = "sqlite:///" + os.path.join(os.path.dirname(__file__), "../../../../atlas.db")
+DATABASE_URL = os.getenv("DB_URL", _default_db)
 
 class GUID(TypeDecorator):
     """Platform-independent GUID type.
@@ -50,11 +51,9 @@ class GUID(TypeDecorator):
                     return value
             return value
 
-if DATABASE_URL.startswith("sqlite"):
-    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-else:
-    engine = create_engine(DATABASE_URL)
-
+# SQLite needs check_same_thread=False for FastAPI's multi-thread usage
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()

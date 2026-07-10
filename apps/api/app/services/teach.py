@@ -35,7 +35,7 @@ class FireworksClient:
         api_key: str | None = None,
         base_url: str | None = None,
         model: str | None = None,
-        timeout: float = 30.0,
+        timeout: float = 120.0,
     ):
         # LLM_PROVIDER=openai is a prototyping-only switch (see
         # docs/hackathon-scope.md §5) to validate this step against GPT-4o
@@ -53,7 +53,7 @@ class FireworksClient:
                 base_url or os.environ.get("FIREWORKS_BASE_URL", "https://api.fireworks.ai/inference/v1")
             ).rstrip("/")
             self.model = model or os.environ.get(
-                "FIREWORKS_MODEL", "accounts/fireworks/models/llama-v3p1-8b-instruct"
+                "FIREWORKS_MODEL", "accounts/fireworks/models/deepseek-v4-pro"
             )
         self.timeout = timeout
 
@@ -66,12 +66,16 @@ class FireworksClient:
             json={
                 "model": self.model,
                 "messages": [{"role": "user", "content": prompt}],
-                "response_format": {"type": "json_object"},
             },
             timeout=self.timeout,
         )
         response.raise_for_status()
         content = response.json()["choices"][0]["message"]["content"]
+        content = content.strip()
+        if content.startswith("```"):
+            content = content.split("```")[1]
+            if content.startswith("json"):
+                content = content[4:]
         return json.loads(content)
 
     def generate(
@@ -109,7 +113,7 @@ class FireworksClient:
             f"source excerpts below — do not use outside knowledge.\n\n"
             f"{prereq_block}"
             f"{excerpts}\n\n"
-            "Return strict JSON:\n"
+            "Return strict JSON only — no prose, no markdown, no code fences:\n"
             "{\n"
             '  "lesson": "<2-4 sentence explanation>",\n'
             '  "questions": [\n'
@@ -139,7 +143,7 @@ class FireworksClient:
             f"Quiz questions:\n{q_block}\n\n"
             "Do ALL of these quiz questions require understanding the lesson above "
             "(not outside knowledge), and are the marked answers actually correct? "
-            'Return strict JSON: {"aligned": true|false}.'
+            'Return strict JSON only — no prose, no markdown, no code fences: {"aligned": true|false}.'
         )
         result = self._chat_json(prompt)
         return bool(result.get("aligned", False))
