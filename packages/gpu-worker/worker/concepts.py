@@ -262,6 +262,143 @@ class OpenAIEmbedder:
         return np.asarray([item["embedding"] for item in data])
 
 
+class FireworksConceptExtractor:
+    """Concept extractor backed by Fireworks AI's OpenAI-compatible chat
+    completions API. Selected via LLM_PROVIDER=fireworks (the default
+    hosted path). Uses the same prompt shape as OpenAIConceptExtractor;
+    the two are wire-compatible because Fireworks mirrors the OpenAI API."""
+
+    def __init__(
+        self,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        model: str | None = None,
+        timeout: float = 120.0,
+    ):
+        self.api_key = api_key or os.environ.get("FIREWORKS_API_KEY", "")
+        self.base_url = (
+            base_url or os.environ.get("FIREWORKS_BASE_URL", "https://api.fireworks.ai/inference/v1")
+        ).rstrip("/")
+        self.model = model or os.environ.get(
+            "FIREWORKS_MODEL", "accounts/fireworks/models/deepseek-v4-pro"
+        )
+        self.timeout = timeout
+
+    def extract(self, chunk: Chunk) -> list[RawConcept]:
+        import httpx
+
+        prompt = (
+            "List the distinct learning concepts this text teaches. "
+            "For each concept, estimate its difficulty: "
+            "'foundational' (no prerequisites needed), "
+            "'intermediate' (requires some background), or "
+            "'advanced' (requires multiple prerequisites). "
+            "Respond with strict JSON only — no prose, no markdown, no code fences: "
+            '{"concepts": [{"name": <short canonical name>, "definition": <one sentence>, '
+            '"difficulty": "foundational"|"intermediate"|"advanced"}, ...]}.\n\n'
+            "Text:\n\n" + chunk.text
+        )
+        response = httpx.post(
+            f"{self.base_url}/chat/completions",
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            json={
+                "model": self.model,
+                "messages": [{"role": "user", "content": prompt}],
+            },
+            timeout=self.timeout,
+        )
+        response.raise_for_status()
+        content = response.json()["choices"][0]["message"]["content"]
+        # Strip markdown fences the model may emit despite the prompt instruction
+        content = content.strip()
+        if content.startswith("```"):
+            content = content.split("```")[1]
+            if content.startswith("json"):
+                content = content[4:]
+        items = json.loads(content).get("concepts", [])
+        return [
+            RawConcept(
+                name=item["name"],
+                definition=item.get("definition", ""),
+                chunk_id=chunk.chunk_id,
+                difficulty=_coerce_difficulty(item.get("difficulty")),
+            )
+            for item in items
+        ]
+
+    def extract_batch(self, chunks: list[Chunk]) -> list[RawConcept]:
+        """Batched counterpart to extract() — see GemmaConceptExtractor.extract_batch."""
+        if not chunks:
+            return []
+
+        import httpx
+
+        blocks = "\n\n".join(f"[CHUNK {i}]\n{chunk.text}" for i, chunk in enumerate(chunks))
+        prompt = (
+            "You are given several text chunks, each marked '[CHUNK i]'. For "
+            "each chunk, list the distinct learning concepts it teaches. "
+            "For each concept, estimate difficulty: 'foundational', 'intermediate', or 'advanced'. "
+            "Respond with strict JSON only — no prose, no markdown, no code fences: "
+            '{"results": [{"chunk_index": <int>, "concepts": [{"name": <short canonical name>, '
+            '"definition": <one sentence>, '
+            '"difficulty": "foundational"|"intermediate"|"advanced"}, ...]}, ...]}\n\n'
+            + blocks
+        )
+        response = httpx.post(
+            f"{self.base_url}/chat/completions",
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            json={
+                "model": self.model,
+                "messages": [{"role": "user", "content": prompt}],
+            },
+            timeout=self.timeout,
+        )
+        response.raise_for_status()
+        content = response.json()["choices"][0]["message"]["content"]
+        content = content.strip()
+        if content.startswith("```"):
+            content = content.split("```")[1]
+            if content.startswith("json"):
+                content = content[4:]
+        results = json.loads(content).get("results", [])
+        return _raw_concepts_from_batch(results, chunks)
+
+
+class FireworksEmbedder:
+    """Embedder backed by Fireworks AI's OpenAI-compatible embeddings endpoint.
+    Selected via LLM_PROVIDER=fireworks (the default hosted path). Avoids the
+    ~1.3GB local model download when running without ROCm hardware."""
+
+    def __init__(
+        self,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        model: str | None = None,
+        timeout: float = 30.0,
+    ):
+        self.api_key = api_key or os.environ.get("FIREWORKS_API_KEY", "")
+        self.base_url = (
+            base_url or os.environ.get("FIREWORKS_BASE_URL", "https://api.fireworks.ai/inference/v1")
+        ).rstrip("/")
+        self.model = model or os.environ.get(
+            "FIREWORKS_EMBEDDING_MODEL", "nomic-ai/nomic-embed-text-v1.5"
+        )
+        self.timeout = timeout
+
+    def __call__(self, texts: list[str]) -> np.ndarray:
+        import httpx
+
+        response = httpx.post(
+            f"{self.base_url}/embeddings",
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            json={"model": self.model, "input": texts},
+            timeout=self.timeout,
+        )
+        response.raise_for_status()
+        data = sorted(response.json()["data"], key=lambda item: item["index"])
+        return np.asarray([item["embedding"] for item in data])
+
+
 class SentenceTransformerEmbedder:
     """Wraps sentence-transformers (bge-large/e5-large) on ROCm-enabled torch.
 
@@ -332,7 +469,6 @@ def extract_raw_concepts(
     max_workers = max(1, max_workers)
 
     batches = [chunks[i : i + batch_size] for i in range(0, len(chunks), batch_size)]
-
     if hasattr(extractor, "extract_batch"):
         run = extractor.extract_batch
     else:

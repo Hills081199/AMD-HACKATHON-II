@@ -16,6 +16,8 @@ import os
 from fastapi import Depends, FastAPI, File, UploadFile
 
 from worker.concepts import (
+    FireworksConceptExtractor,
+    FireworksEmbedder,
     GemmaConceptExtractor,
     OpenAIConceptExtractor,
     OpenAIEmbedder,
@@ -28,17 +30,23 @@ from worker.prerequisites import FireworksClient, build_candidate_edges
 
 app = FastAPI(title="Atlas GPU Worker")
 
-# LLM_PROVIDER=openai is a prototyping-only switch to validate the pipeline
-# end-to-end against GPT-4o mini before real ROCm/Gemma infrastructure is
-# available (docs/hackathon-scope.md §5) — NOT the production path (see
-# GemmaConceptExtractor/OpenAIConceptExtractor's docstrings).
-_USE_OPENAI = os.environ.get("LLM_PROVIDER", "").lower() == "openai"
-_embedder = OpenAIEmbedder() if _USE_OPENAI else SentenceTransformerEmbedder()
-_gemma = (
-    OpenAIConceptExtractor()
-    if _USE_OPENAI
-    else GemmaConceptExtractor(base_url=os.environ.get("GEMMA_BASE_URL", "http://localhost:11434"))
-)
+# LLM_PROVIDER selects the backend for concept extraction and embeddings:
+#   "fireworks" — Fireworks AI hosted API (default hosted path, production-ready)
+#   "openai"    — OpenAI GPT-4o mini (prototyping-only, see docs/hackathon-scope.md §5)
+#   anything else — local Gemma via vLLM-ROCm/Ollama + local SentenceTransformer
+_LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "").lower()
+_USE_OPENAI = _LLM_PROVIDER == "openai"
+_USE_FIREWORKS = _LLM_PROVIDER == "fireworks"
+
+if _USE_OPENAI:
+    _embedder = OpenAIEmbedder()
+    _gemma = OpenAIConceptExtractor()
+elif _USE_FIREWORKS:
+    _embedder = FireworksEmbedder()
+    _gemma = FireworksConceptExtractor()
+else:
+    _embedder = SentenceTransformerEmbedder()
+    _gemma = GemmaConceptExtractor(base_url=os.environ.get("GEMMA_BASE_URL", "http://localhost:11434"))
 _fireworks = FireworksClient()
 
 

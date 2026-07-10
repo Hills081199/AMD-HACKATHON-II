@@ -59,8 +59,10 @@ if _GPU_WORKER is not None and str(_GPU_WORKER) not in sys.path:
 
 from worker.ingest import Chunk, chunk_document  # noqa: E402
 from worker.concepts import (  # noqa: E402
-    OpenAIConceptExtractor,
+    FireworksConceptExtractor,
+    FireworksEmbedder,
     GemmaConceptExtractor,
+    OpenAIConceptExtractor,
     OpenAIEmbedder,
     SentenceTransformerEmbedder,
     cluster_concepts,
@@ -74,7 +76,7 @@ from app.services.levels import assign_levels  # noqa: E402
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai").lower()
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "").lower()
 PREREQ_SIMILARITY_THRESHOLD = float(os.getenv("PREREQ_SIMILARITY_THRESHOLD", "0.6"))
 # P99.5 of embedding distribution → top 0.5% most-similar pairs treated as near-duplicates
 # Matches build_demo_dataset.py default; decrease to merge more aggressively
@@ -85,6 +87,8 @@ MIN_DEPTH_WARN = int(os.getenv("MIN_DEPTH_WARN", "3"))
 def _make_extractor():
     if LLM_PROVIDER == "openai":
         return OpenAIConceptExtractor()
+    if LLM_PROVIDER == "fireworks":
+        return FireworksConceptExtractor()
     base_url = os.getenv("GEMMA_BASE_URL", "http://localhost:11434")
     return GemmaConceptExtractor(base_url=base_url)
 
@@ -92,6 +96,8 @@ def _make_extractor():
 def _make_embedder():
     if LLM_PROVIDER == "openai":
         return OpenAIEmbedder()
+    if LLM_PROVIDER == "fireworks":
+        return FireworksEmbedder()
     return SentenceTransformerEmbedder()
 
 
