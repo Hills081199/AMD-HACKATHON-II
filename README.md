@@ -104,7 +104,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the pipeline diagram and 
 
 ## Submission Checklist (hackathon)
 
-- [ ] Public GitHub repo with README (this file)
+- [x] Public GitHub repo with README (this file)
 - [ ] Fully runnable without Docker (per track rules)
 - [ ] Demo video + presentation slides
 - [ ] Cover image, title, description, tags
