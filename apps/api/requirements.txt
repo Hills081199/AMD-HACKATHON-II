@@ -8,10 +8,11 @@ networkx==3.3
 # Authentication
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
-# Database
+# Database - SQLite (built-in, no extra install needed)
 sqlalchemy==2.0.30
-asyncpg==0.29.0
-psycopg2-binary==2.9.9
+# Uncomment below if you switch back to PostgreSQL:
+# asyncpg==0.29.0
+# psycopg2-binary==2.9.9
 # Email (for password reset)
 aiosmtplib==3.0.1
 # Document extraction

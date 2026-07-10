@@ -2,8 +2,11 @@ import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, Integer, Enum as SQLEnum
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID
 import enum
+
+# Use String(36) for UUID - compatible with both SQLite and PostgreSQL
+def _uuid_col(**kw):
+    return Column(String(36), **kw)
 
 from app.db.database import Base
 
@@ -22,7 +25,7 @@ class UserTier(str, enum.Enum):
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
     display_name = Column(String(100), nullable=True)
@@ -53,8 +56,8 @@ class User(Base):
 class PasswordReset(Base):
     __tablename__ = "password_resets"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), nullable=False, index=True)
     token_hash = Column(String(255), nullable=False)
     expires_at = Column(DateTime, nullable=False)
     used_at = Column(DateTime, nullable=True)

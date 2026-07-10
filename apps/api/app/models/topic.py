@@ -7,8 +7,9 @@ from datetime import datetime
 from typing import Optional, List
 from sqlalchemy import Column, String, Integer, Float, Text, DateTime, ForeignKey, JSON, Enum as SQLEnum
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID
 import enum
+
+# Use String(36) for UUID - compatible with both SQLite and PostgreSQL
 
 from app.db.database import Base
 
@@ -30,8 +31,8 @@ class Topic(Base):
     """A topic represents a learning subject created from uploaded documents."""
     __tablename__ = "topics"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
     title = Column(String(255), nullable=True)  # Generated from content
     status = Column(SQLEnum(ProcessingStatus), default=ProcessingStatus.PENDING)
     error_message = Column(Text, nullable=True)
@@ -50,8 +51,8 @@ class Document(Base):
     """An uploaded document associated with a topic."""
     __tablename__ = "documents"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    topic_id = Column(UUID(as_uuid=True), ForeignKey("topics.id"), nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    topic_id = Column(String(36), ForeignKey("topics.id"), nullable=False)
     filename = Column(String(255), nullable=False)
     file_path = Column(String(512), nullable=False)
     file_size = Column(Integer, nullable=False)
@@ -67,8 +68,8 @@ class Node(Base):
     """A node in the mastery tree (concept/skill)."""
     __tablename__ = "nodes"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    topic_id = Column(UUID(as_uuid=True), ForeignKey("topics.id"), nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    topic_id = Column(String(36), ForeignKey("topics.id"), nullable=False)
     title = Column(String(255), nullable=False)
     concept_key = Column(String(255), nullable=False)
     level = Column(Integer, default=0)  # Depth in the tree
@@ -95,10 +96,10 @@ class Edge(Base):
     """An edge connecting two nodes (prerequisite relationship)."""
     __tablename__ = "edges"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    topic_id = Column(UUID(as_uuid=True), ForeignKey("topics.id"), nullable=False)
-    source_node_id = Column(UUID(as_uuid=True), ForeignKey("nodes.id"), nullable=False)
-    target_node_id = Column(UUID(as_uuid=True), ForeignKey("nodes.id"), nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    topic_id = Column(String(36), ForeignKey("topics.id"), nullable=False)
+    source_node_id = Column(String(36), ForeignKey("nodes.id"), nullable=False)
+    target_node_id = Column(String(36), ForeignKey("nodes.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
@@ -111,9 +112,9 @@ class UserProgress(Base):
     """Track user's progress on nodes."""
     __tablename__ = "user_progress"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    node_id = Column(UUID(as_uuid=True), ForeignKey("nodes.id"), nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    node_id = Column(String(36), ForeignKey("nodes.id"), nullable=False)
     status = Column(SQLEnum(NodeStatus), default=NodeStatus.LOCKED)
     quiz_score = Column(Float, nullable=True)
     attempts = Column(Integer, default=0)
