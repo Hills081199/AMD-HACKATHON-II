@@ -104,7 +104,7 @@ class FireworksClient:
             f"Concept B: {concept_b['name']} [{diff_b}] — {concept_b['definition']}\n"
             + difficulty_hint
             + "\nReturn strict JSON only — no prose, no markdown, no code fences: {\"direction\": \"a_before_b\" | \"b_before_a\" | \"none\", "
-            '"confidence": <0.0-1.0>, "reasoning": "<one sentence>"}. '
+            '"confidence": <0.0-1.0>}. '
             '"none" means they can be learned independently or in either order.'
         )
 
@@ -137,6 +137,82 @@ class FireworksClient:
                           f"({concept_a.get('name')}, {concept_b.get('name')}): {exc}")
                     return {"direction": "none", "confidence": 0.0}
         return {"direction": "none", "confidence": 0.0}
+
+    def infer_direction_batch(
+        self,
+        pairs: list[tuple[dict, dict, str]],
+        all_concepts: list[dict] | None = None,
+        domain: str = "general learning",
+    ) -> list[dict]:
+        """Ask whether concept_a or concept_b is a prerequisite for multiple pairs at once.
+        pairs: list of (concept_a, concept_b, pair_id)
+        Returns a list of dicts: [{"id": pair_id, "direction": ..., "confidence": ...}, ...]
+        """
+        if not pairs:
+            return []
+
+        import httpx
+
+        context_block = ""
+        if all_concepts:
+            concept_list = ", ".join(c["name"] for c in all_concepts[:30])
+            context_block = (
+                f"These concepts come from a {domain} curriculum that also covers: "
+                f"{concept_list}.\n\n"
+            )
+
+        prompt = (
+            context_block
+            + "Determine whether one concept is a learning prerequisite for the other for each pair below.\n"
+            "A prerequisite is something a learner must understand BEFORE they can understand the other concept.\n"
+            "A more foundational concept is typically a prerequisite of a more advanced one. Use difficulty tags as a strong prior.\n\n"
+        )
+
+        for concept_a, concept_b, pair_id in pairs:
+            diff_a = concept_a.get("difficulty", "intermediate")
+            diff_b = concept_b.get("difficulty", "intermediate")
+            prompt += f"--- Pair ID: {pair_id} ---\n"
+            prompt += f"Concept A: {concept_a['name']} [{diff_a}] — {concept_a.get('definition', '')}\n"
+            prompt += f"Concept B: {concept_b['name']} [{diff_b}] — {concept_b.get('definition', '')}\n\n"
+
+        prompt += (
+            "Return strict JSON only — no prose, no markdown, no code fences. It must be a JSON array of objects, one for each pair, in this exact format:\n"
+            "[\n"
+            "  {\"id\": \"<Pair ID>\", \"direction\": \"a_before_b\" | \"b_before_a\" | \"none\", \"confidence\": <0.0-1.0>}\n"
+            "]\n"
+            '"none" means they can be learned independently or in either order.'
+        )
+
+        for attempt in range(3):
+            try:
+                response = httpx.post(
+                    f"{self.base_url}/chat/completions",
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                    json={
+                        "model": self.model,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": 0.1,
+                    },
+                    timeout=self.timeout,
+                )
+                response.raise_for_status()
+                content = response.json()["choices"][0]["message"]["content"]
+
+                content = content.strip()
+                if content.startswith("```"):
+                    content = content.split("```")[1]
+                    if content.startswith("json"):
+                        content = content[4:]
+
+                results = json.loads(content)
+                if isinstance(results, list):
+                    return results
+            except (json.JSONDecodeError, KeyError, Exception) as exc:
+                if attempt == 2:
+                    print(f"[WARN] infer_direction_batch failed after 3 attempts: {exc}")
+                    return [{"id": pid, "direction": "none", "confidence": 0.0} for _, _, pid in pairs]
+        
+        return [{"id": pid, "direction": "none", "confidence": 0.0} for _, _, pid in pairs]
 
 
 def pre_filter_pairs(
@@ -243,23 +319,43 @@ def build_candidate_edges(
     pairs = pre_filter_pairs(concepts, similarity_threshold)
     print(f"  [Step 4] Checking {len(pairs)} candidate pairs from {len(concepts)} concepts...")
 
-    def _check_pair(pair: tuple[int, int]) -> tuple[dict, dict, str, float]:
-        i, j = pair
-        concept_a, concept_b = concepts[i], concepts[j]
-        result = fireworks.infer_direction(concept_a, concept_b, all_concepts=concepts)
-        print(f"  [Step 4] Checking {concept_a.get('name')} -> {concept_b.get('name')}: {result}")
-        direction = result.get("direction")
-        confidence = float(result.get("confidence", 0.0))
-        return concept_a, concept_b, direction, confidence
+    if not pairs:
+        return edges
+
+    # Batching logic: 10 pairs per prompt
+    batch_size = 10
+    batches = []
+    for i in range(0, len(pairs), batch_size):
+        batch_pairs = pairs[i:i + batch_size]
+        batch_data = []
+        for p in batch_pairs:
+            idx_a, idx_b = p
+            pair_id = f"{idx_a}_{idx_b}"
+            batch_data.append((concepts[idx_a], concepts[idx_b], pair_id))
+        batches.append(batch_data)
+
+    def _check_batch(batch_data: list[tuple[dict, dict, str]]) -> list[tuple[dict, dict, str, float]]:
+        results = fireworks.infer_direction_batch(batch_data, all_concepts=concepts)
+        
+        out = []
+        result_by_id = {r.get("id"): r for r in results if isinstance(r, dict)}
+        for concept_a, concept_b, pair_id in batch_data:
+            res = result_by_id.get(pair_id, {})
+            direction = res.get("direction", "none")
+            confidence = float(res.get("confidence", 0.0))
+            print(f"  [Step 4] Checked {concept_a.get('name')} -> {concept_b.get('name')}: {res}")
+            out.append((concept_a, concept_b, direction, confidence))
+        return out
 
     max_workers = int(os.environ.get("PREREQ_MAX_WORKERS", "30"))
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        for concept_a, concept_b, direction, confidence in executor.map(_check_pair, pairs):
-            if confidence < min_confidence:
-                continue
+        for batch_results in executor.map(_check_batch, batches):
+            for concept_a, concept_b, direction, confidence in batch_results:
+                if confidence < min_confidence:
+                    continue
 
-            if direction == "a_before_b":
-                edges.append({"from": concept_a["id"], "to": concept_b["id"], "confidence": confidence})
-            elif direction == "b_before_a":
-                edges.append({"from": concept_b["id"], "to": concept_a["id"], "confidence": confidence})
+                if direction == "a_before_b":
+                    edges.append({"from": concept_a["id"], "to": concept_b["id"], "confidence": confidence})
+                elif direction == "b_before_a":
+                    edges.append({"from": concept_b["id"], "to": concept_a["id"], "confidence": confidence})
     return edges

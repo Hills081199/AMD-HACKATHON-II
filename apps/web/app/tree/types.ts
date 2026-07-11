@@ -5,6 +5,8 @@ export interface QuizQuestion {
   question: string;
   options: string[];
   answer_index?: number;
+  difficulty?: string;
+  type?: string;
 }
 
 export interface Quiz {
@@ -31,9 +33,16 @@ export interface RawTreeNode {
   title?: string;
   level: number;
   status?: string;
-  quiz?: Quiz;
+  quiz?: Quiz | null;
   lesson?: NodeLesson;
   sources?: NodeSource[];
+  // Gamification fields from build_demo_dataset.py (step 7)
+  difficulty?: string;
+  difficulty_badge?: string;
+  xp_reward?: number;
+  estimated_minutes?: number;
+  prerequisites?: string[];
+  concept_key?: string;
 }
 
 export interface TreeEdge {
@@ -57,5 +66,14 @@ export interface DisplayNode {
   label: string;
   level: number;
   status: NodeStatus;
-  quiz?: Quiz;
+  quiz?: Quiz | null;
+  // Rich node metadata for the modal
+  lesson?: NodeLesson;
+  sources?: NodeSource[];
+  difficulty?: string;
+  difficulty_badge?: string;
+  xp_reward?: number;
+  estimated_minutes?: number;
+  prerequisites?: string[];
+  concept_key?: string;
 }

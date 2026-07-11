@@ -1,0 +1,1057 @@
+{
+  "topic": "Topic 815361c4",
+  "topic_id": "815361c4-4862-4af2-b0fb-19b0cac28b70",
+  "generated_at": "2026-07-11T03:10:39.418941Z",
+  "document_count": 1,
+  "nodes": [
+    {
+      "id": "concept_001",
+      "title": "Loss function",
+      "concept_key": "loss_function",
+      "level": 0,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": -110.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_009",
+      "title": "Binary Classification Setup",
+      "concept_key": "binary_classification_setup",
+      "level": 0,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 9
+        }
+      ],
+      "position": {
+        "x": 110.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_024",
+      "title": "L2 Regularization",
+      "concept_key": "l2_regularization",
+      "level": 1,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 100,
+      "estimated_minutes": 15,
+      "status": "locked",
+      "prerequisites": [
+        "concept_001"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 15
+        }
+      ],
+      "position": {
+        "x": -550.0,
+        "y": 160
+      }
+    },
+    {
+      "id": "concept_006",
+      "title": "Square Loss (L2 Loss)",
+      "concept_key": "square_loss_l2_loss",
+      "level": 1,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 100,
+      "estimated_minutes": 15,
+      "status": "locked",
+      "prerequisites": [
+        "concept_001"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 5
+        },
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 7
+        }
+      ],
+      "position": {
+        "x": -330.0,
+        "y": 160
+      }
+    },
+    {
+      "id": "concept_007",
+      "title": "Absolute Loss (Laplace/L1 Loss)",
+      "concept_key": "absolute_loss_laplace_l1_loss",
+      "level": 1,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 100,
+      "estimated_minutes": 15,
+      "status": "locked",
+      "prerequisites": [
+        "concept_001"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 5
+        },
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 7
+        }
+      ],
+      "position": {
+        "x": -110.0,
+        "y": 160
+      }
+    },
+    {
+      "id": "concept_002",
+      "title": "Distance-based loss",
+      "concept_key": "distance_based_loss",
+      "level": 1,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 100,
+      "estimated_minutes": 15,
+      "status": "locked",
+      "prerequisites": [
+        "concept_001"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": 110.0,
+        "y": 160
+      }
+    },
+    {
+      "id": "concept_010",
+      "title": "Zero-One Loss",
+      "concept_key": "zero_one_loss",
+      "level": 1,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 100,
+      "estimated_minutes": 15,
+      "status": "locked",
+      "prerequisites": [
+        "concept_001",
+        "concept_009"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 9
+        }
+      ],
+      "position": {
+        "x": 330.0,
+        "y": 160
+      }
+    },
+    {
+      "id": "concept_011",
+      "title": "Real-Valued Prediction for Classification",
+      "concept_key": "real_valued_prediction_for_classification",
+      "level": 1,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 100,
+      "estimated_minutes": 15,
+      "status": "locked",
+      "prerequisites": [
+        "concept_009"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 9
+        }
+      ],
+      "position": {
+        "x": 550.0,
+        "y": 160
+      }
+    },
+    {
+      "id": "concept_003",
+      "title": "Translation invariance",
+      "concept_key": "translation_invariance",
+      "level": 2,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 150,
+      "estimated_minutes": 20,
+      "status": "locked",
+      "prerequisites": [
+        "concept_002",
+        "concept_006",
+        "concept_007"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 4
+        }
+      ],
+      "position": {
+        "x": -110.0,
+        "y": 320
+      }
+    },
+    {
+      "id": "concept_012",
+      "title": "Score Function",
+      "concept_key": "score_function",
+      "level": 2,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 150,
+      "estimated_minutes": 20,
+      "status": "locked",
+      "prerequisites": [
+        "concept_011"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 10
+        }
+      ],
+      "position": {
+        "x": 110.0,
+        "y": 320
+      }
+    },
+    {
+      "id": "concept_004",
+      "title": "Relative error loss",
+      "concept_key": "relative_error_loss",
+      "level": 3,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 175,
+      "estimated_minutes": 25,
+      "status": "locked",
+      "prerequisites": [
+        "concept_003"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 4
+        }
+      ],
+      "position": {
+        "x": -220.0,
+        "y": 480
+      }
+    },
+    {
+      "id": "concept_019",
+      "title": "Margin",
+      "concept_key": "margin",
+      "level": 3,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 175,
+      "estimated_minutes": 25,
+      "status": "locked",
+      "prerequisites": [
+        "concept_012"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 14
+        }
+      ],
+      "position": {
+        "x": 0.0,
+        "y": 480
+      }
+    },
+    {
+      "id": "concept_023",
+      "title": "Hypothesis Space",
+      "concept_key": "hypothesis_space",
+      "level": 3,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 175,
+      "estimated_minutes": 25,
+      "status": "locked",
+      "prerequisites": [
+        "concept_012"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 15
+        }
+      ],
+      "position": {
+        "x": 220.0,
+        "y": 480
+      }
+    },
+    {
+      "id": "concept_013",
+      "title": "Margin (Functional Margin)",
+      "concept_key": "margin_functional_margin",
+      "level": 4,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 200,
+      "estimated_minutes": 30,
+      "status": "locked",
+      "prerequisites": [
+        "concept_010",
+        "concept_019",
+        "concept_023"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 11
+        }
+      ],
+      "position": {
+        "x": 0.0,
+        "y": 640
+      }
+    },
+    {
+      "id": "concept_018",
+      "title": "Zero-One Loss",
+      "concept_key": "zero_one_loss",
+      "level": 5,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 225,
+      "estimated_minutes": 35,
+      "status": "locked",
+      "prerequisites": [
+        "concept_013"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 14
+        }
+      ],
+      "position": {
+        "x": 0.0,
+        "y": 800
+      }
+    },
+    {
+      "id": "concept_017",
+      "title": "Zero-One Loss as Margin Function",
+      "concept_key": "zero_one_loss_as_margin_function",
+      "level": 6,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 250,
+      "estimated_minutes": 40,
+      "status": "locked",
+      "prerequisites": [
+        "concept_018"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 12
+        }
+      ],
+      "position": {
+        "x": 0.0,
+        "y": 960
+      }
+    },
+    {
+      "id": "concept_014",
+      "title": "Margin-Based Loss",
+      "concept_key": "margin_based_loss",
+      "level": 7,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 275,
+      "estimated_minutes": 45,
+      "status": "locked",
+      "prerequisites": [
+        "concept_017"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 11
+        }
+      ],
+      "position": {
+        "x": -110.0,
+        "y": 1120
+      }
+    },
+    {
+      "id": "concept_015",
+      "title": "Empirical Risk of Zero-One Loss",
+      "concept_key": "empirical_risk_of_zero_one_loss",
+      "level": 7,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 275,
+      "estimated_minutes": 45,
+      "status": "locked",
+      "prerequisites": [
+        "concept_017"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 12
+        }
+      ],
+      "position": {
+        "x": 110.0,
+        "y": 1120
+      }
+    },
+    {
+      "id": "concept_016",
+      "title": "Optimization Difficulty of Zero-One Loss",
+      "concept_key": "optimization_difficulty_of_zero_one_loss",
+      "level": 8,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 300,
+      "estimated_minutes": 50,
+      "status": "locked",
+      "prerequisites": [
+        "concept_015"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 12
+        }
+      ],
+      "position": {
+        "x": 0.0,
+        "y": 1280
+      }
+    },
+    {
+      "id": "concept_025",
+      "title": "Logistic Loss",
+      "concept_key": "logistic_loss",
+      "level": 9,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 325,
+      "estimated_minutes": 55,
+      "status": "locked",
+      "prerequisites": [
+        "concept_014",
+        "concept_016"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 16
+        }
+      ],
+      "position": {
+        "x": -330.0,
+        "y": 1440
+      }
+    },
+    {
+      "id": "concept_021",
+      "title": "Convex Upper Bound",
+      "concept_key": "convex_upper_bound",
+      "level": 9,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 325,
+      "estimated_minutes": 55,
+      "status": "locked",
+      "prerequisites": [
+        "concept_016"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 14
+        }
+      ],
+      "position": {
+        "x": -110.0,
+        "y": 1440
+      }
+    },
+    {
+      "id": "concept_026",
+      "title": "Square Loss for Classification",
+      "concept_key": "square_loss_for_classification",
+      "level": 9,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 325,
+      "estimated_minutes": 55,
+      "status": "locked",
+      "prerequisites": [
+        "concept_002",
+        "concept_006",
+        "concept_014",
+        "concept_016"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 17
+        }
+      ],
+      "position": {
+        "x": 110.0,
+        "y": 1440
+      }
+    },
+    {
+      "id": "concept_020",
+      "title": "Hinge Loss",
+      "concept_key": "hinge_loss",
+      "level": 9,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 325,
+      "estimated_minutes": 55,
+      "status": "locked",
+      "prerequisites": [
+        "concept_006",
+        "concept_014",
+        "concept_016"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 14
+        }
+      ],
+      "position": {
+        "x": 330.0,
+        "y": 1440
+      }
+    },
+    {
+      "id": "concept_022",
+      "title": "Soft Margin Linear SVM",
+      "concept_key": "soft_margin_linear_svm",
+      "level": 10,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 350,
+      "estimated_minutes": 60,
+      "status": "locked",
+      "prerequisites": [
+        "concept_020",
+        "concept_021",
+        "concept_024"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 15
+        }
+      ],
+      "position": {
+        "x": -110.0,
+        "y": 1600
+      }
+    },
+    {
+      "id": "concept_005",
+      "title": "Robustness of loss functions",
+      "concept_key": "robustness_of_loss_functions",
+      "level": 10,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 350,
+      "estimated_minutes": 60,
+      "status": "locked",
+      "prerequisites": [
+        "concept_007",
+        "concept_020",
+        "concept_025",
+        "concept_026"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 6
+        }
+      ],
+      "position": {
+        "x": 110.0,
+        "y": 1600
+      }
+    },
+    {
+      "id": "concept_027",
+      "title": "Outlier Sensitivity of Square Loss",
+      "concept_key": "outlier_sensitivity_of_square_loss",
+      "level": 11,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 375,
+      "estimated_minutes": 65,
+      "status": "locked",
+      "prerequisites": [
+        "concept_005"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 18
+        },
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 5
+        }
+      ],
+      "position": {
+        "x": 0.0,
+        "y": 1760
+      }
+    },
+    {
+      "id": "concept_028",
+      "title": "Sample Complexity",
+      "concept_key": "sample_complexity",
+      "level": 12,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 400,
+      "estimated_minutes": 70,
+      "status": "locked",
+      "prerequisites": [
+        "concept_021",
+        "concept_027"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 18
+        }
+      ],
+      "position": {
+        "x": -110.0,
+        "y": 1920
+      }
+    },
+    {
+      "id": "concept_008",
+      "title": "Huber Loss",
+      "concept_key": "huber_loss",
+      "level": 12,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 400,
+      "estimated_minutes": 70,
+      "status": "locked",
+      "prerequisites": [
+        "concept_027"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "3b.loss-functions.pdf",
+          "page": 7
+        }
+      ],
+      "position": {
+        "x": 110.0,
+        "y": 1920
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "concept_001",
+      "to": "concept_024"
+    },
+    {
+      "from": "concept_001",
+      "to": "concept_006"
+    },
+    {
+      "from": "concept_001",
+      "to": "concept_007"
+    },
+    {
+      "from": "concept_001",
+      "to": "concept_002"
+    },
+    {
+      "from": "concept_001",
+      "to": "concept_010"
+    },
+    {
+      "from": "concept_002",
+      "to": "concept_003"
+    },
+    {
+      "from": "concept_002",
+      "to": "concept_026"
+    },
+    {
+      "from": "concept_003",
+      "to": "concept_004"
+    },
+    {
+      "from": "concept_005",
+      "to": "concept_027"
+    },
+    {
+      "from": "concept_006",
+      "to": "concept_003"
+    },
+    {
+      "from": "concept_006",
+      "to": "concept_026"
+    },
+    {
+      "from": "concept_006",
+      "to": "concept_020"
+    },
+    {
+      "from": "concept_007",
+      "to": "concept_005"
+    },
+    {
+      "from": "concept_007",
+      "to": "concept_003"
+    },
+    {
+      "from": "concept_010",
+      "to": "concept_013"
+    },
+    {
+      "from": "concept_013",
+      "to": "concept_018"
+    },
+    {
+      "from": "concept_014",
+      "to": "concept_025"
+    },
+    {
+      "from": "concept_014",
+      "to": "concept_026"
+    },
+    {
+      "from": "concept_014",
+      "to": "concept_020"
+    },
+    {
+      "from": "concept_015",
+      "to": "concept_016"
+    },
+    {
+      "from": "concept_016",
+      "to": "concept_025"
+    },
+    {
+      "from": "concept_016",
+      "to": "concept_021"
+    },
+    {
+      "from": "concept_016",
+      "to": "concept_026"
+    },
+    {
+      "from": "concept_016",
+      "to": "concept_020"
+    },
+    {
+      "from": "concept_017",
+      "to": "concept_014"
+    },
+    {
+      "from": "concept_017",
+      "to": "concept_015"
+    },
+    {
+      "from": "concept_018",
+      "to": "concept_017"
+    },
+    {
+      "from": "concept_020",
+      "to": "concept_022"
+    },
+    {
+      "from": "concept_020",
+      "to": "concept_005"
+    },
+    {
+      "from": "concept_021",
+      "to": "concept_022"
+    },
+    {
+      "from": "concept_021",
+      "to": "concept_028"
+    },
+    {
+      "from": "concept_024",
+      "to": "concept_022"
+    },
+    {
+      "from": "concept_025",
+      "to": "concept_005"
+    },
+    {
+      "from": "concept_026",
+      "to": "concept_005"
+    },
+    {
+      "from": "concept_027",
+      "to": "concept_028"
+    },
+    {
+      "from": "concept_027",
+      "to": "concept_008"
+    },
+    {
+      "from": "concept_012",
+      "to": "concept_019"
+    },
+    {
+      "from": "concept_012",
+      "to": "concept_023"
+    },
+    {
+      "from": "concept_019",
+      "to": "concept_013"
+    },
+    {
+      "from": "concept_009",
+      "to": "concept_010"
+    },
+    {
+      "from": "concept_009",
+      "to": "concept_011"
+    },
+    {
+      "from": "concept_011",
+      "to": "concept_012"
+    },
+    {
+      "from": "concept_023",
+      "to": "concept_013"
+    }
+  ],
+  "dropped_edges": [],
+  "user_progress": {
+    "completed_nodes": [],
+    "unlocked_nodes": [
+      "concept_001",
+      "concept_009"
+    ],
+    "locked_nodes": [
+      "concept_024",
+      "concept_006",
+      "concept_007",
+      "concept_002",
+      "concept_010",
+      "concept_011",
+      "concept_003",
+      "concept_012",
+      "concept_004",
+      "concept_019",
+      "concept_023",
+      "concept_013",
+      "concept_018",
+      "concept_017",
+      "concept_014",
+      "concept_015",
+      "concept_016",
+      "concept_025",
+      "concept_021",
+      "concept_026",
+      "concept_020",
+      "concept_022",
+      "concept_005",
+      "concept_027",
+      "concept_028",
+      "concept_008"
+    ],
+    "total_nodes": 28,
+    "percent_complete": 0
+  }
+}

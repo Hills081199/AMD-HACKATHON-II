@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { FileText, Network, Settings2, Workflow } from "lucide-react";
 import React from "react";
@@ -15,7 +15,7 @@ import { computePineLayout } from "./pineLayout";
 import { clusterForDisplay } from "./clusterNodes";
 import { useTreeProgressStore } from "./progressStore";
 import { deriveNodeStatuses, seedCompletedIds, toDisplayNodes } from "./unlock";
-import type { NodeSource, TreeResponse } from "./types";
+import type { NodeSource, RawTreeNode, TreeResponse } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const DEFAULT_TOPIC_ID = "intro-to-ml";
@@ -35,6 +35,9 @@ function TreePageContent() {
   const [quizResult, setQuizResult] = useState<QuizResult | null>(null);
   const [quizError, setQuizError] = useState<string | null>(null);
 
+  // State for on-demand lesson/quiz generation
+  const [isGenerating, setIsGenerating] = useState(false);
+
   // Ref that PineCanvas populates so SearchBar can scroll to a node
   const scrollToRef = useRef<((nodeId: string) => void) | null>(null);
 
@@ -50,6 +53,56 @@ function TreePageContent() {
       })
       .catch((err: Error) => setError(err.message));
   }, [topicId, seedCompleted]);
+
+  /** Update a single node in the tree state (after lesson/quiz generation) */
+  const patchNode = useCallback((nodeId: string, patch: Partial<RawTreeNode>) => {
+    setTree((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        nodes: prev.nodes.map((n) => (n.id === nodeId ? { ...n, ...patch } : n)),
+      };
+    });
+  }, []);
+
+  /** Call the backend to generate lesson + quiz for a node on demand.
+   * Uses cache: if the node already has lesson.summary, skips the API call. */
+  const generateLesson = useCallback(
+    async (node: RawTreeNode) => {
+      const alreadyHasContent =
+        node.lesson?.summary && node.lesson.summary.trim().length > 0 &&
+        node.quiz?.questions && node.quiz.questions.length > 0;
+
+      if (alreadyHasContent) {
+        // Content already available — open modal immediately, no generation needed
+        return;
+      }
+
+      setIsGenerating(true);
+      try {
+        const response = await fetch(
+          `${API_URL}/trees/${topicId}/nodes/${node.id}/generate-lesson`,
+          { method: "POST" }
+        );
+        if (!response.ok) throw new Error(`generate-lesson failed: ${response.status}`);
+        const body = await response.json();
+        // Patch the node in local state so the modal re-renders with new content
+        patchNode(node.id, {
+          lesson: {
+            summary: body.lesson ?? "",
+            real_world_example: body.example ?? "",
+          },
+          quiz: body.quiz ?? null,
+        });
+      } catch (err) {
+        console.error("[TreePage] generate-lesson error:", err);
+        // Don't block the modal — just show empty content
+      } finally {
+        setIsGenerating(false);
+      }
+    },
+    [topicId, patchNode]
+  );
 
   // Derive display nodes + cluster if large
   const { allDisplayNodes, clusterResult } = useMemo(() => {
@@ -106,6 +159,17 @@ function TreePageContent() {
       setQuizNodeId(nodeId);
       setQuizResult(null);
       setQuizError(null);
+
+      // Find the raw node and trigger generation if needed
+      const rawNode = tree?.nodes.find((n) => n.id === nodeId);
+      if (rawNode) {
+        // Only trigger if lesson is missing
+        const alreadyHasContent =
+          rawNode.lesson?.summary && rawNode.lesson.summary.trim().length > 0;
+        if (!alreadyHasContent) {
+          generateLesson(rawNode);
+        }
+      }
     }
   }
 
@@ -113,6 +177,7 @@ function TreePageContent() {
     setQuizNodeId(null);
     setQuizResult(null);
     setQuizError(null);
+    setIsGenerating(false);
   };
 
   const submitQuiz = async (nodeId: string, answers: Record<string, number>) => {
@@ -138,7 +203,11 @@ function TreePageContent() {
     }
   };
 
-  const quizNode = quizNodeId ? tree?.nodes.find((n) => n.id === quizNodeId) : undefined;
+  // Always read the latest node data from `tree`
+  // We use useMemo to explicitly recalculate when `tree` changes.
+  const quizNode = useMemo(() => {
+    return quizNodeId ? tree?.nodes.find((n) => n.id === quizNodeId) : undefined;
+  }, [quizNodeId, tree]);
 
   // Handle search selection: scroll + highlight
   function handleSearchSelect(nodeId: string) {
@@ -309,11 +378,16 @@ function TreePageContent() {
       {quizNode && (
         <QuizModal
           nodeLabel={quizNode.title ?? quizNode.name ?? quizNode.id}
+          difficultyBadge={quizNode.difficulty_badge}
+          xpReward={quizNode.xp_reward}
+          estimatedMinutes={quizNode.estimated_minutes}
           quiz={quizNode.quiz}
           lesson={quizNode.lesson}
+          sources={quizNode.sources}
           submitting={quizSubmitting}
           result={quizResult}
           error={quizError}
+          isGenerating={isGenerating}
           onSubmit={(answers) => submitQuiz(quizNode.id, answers)}
           onClose={closeQuiz}
         />
