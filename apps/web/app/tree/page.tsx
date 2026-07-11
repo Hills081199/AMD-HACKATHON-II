@@ -1,38 +1,24 @@
 "use client";
 
-import "@xyflow/react/dist/style.css";
-
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Controls, ReactFlow, type Edge, type NodeMouseHandler } from "@xyflow/react";
 import { FileText, Network, Settings2, Workflow } from "lucide-react";
-import { Header } from "../components/Header";
-
-import { layoutNodesByLevel } from "./positions";
-import { useTreeProgressStore } from "./progressStore";
-import { QuizModal, type QuizResult } from "./QuizModal";
-import { TreeNode, type TreeFlowNode } from "./TreeNode";
-import type { NodeSource, NodeStatus, TreeResponse } from "./types";
-import { deriveNodeStatuses, seedCompletedIds, toDisplayNodes } from "./unlock";
 import React from "react";
 
+import { Header } from "../components/Header";
+import { QuizModal, type QuizResult } from "./QuizModal";
+import { StatsStrip } from "./StatsStrip";
+import { SearchBar } from "./SearchBar";
+import { PineCanvas } from "./PineCanvas";
+import { usePineInteraction } from "./usePineInteraction";
+import { computePineLayout } from "./pineLayout";
+import { clusterForDisplay } from "./clusterNodes";
+import { useTreeProgressStore } from "./progressStore";
+import { deriveNodeStatuses, seedCompletedIds, toDisplayNodes } from "./unlock";
+import type { NodeSource, TreeResponse } from "./types";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-// Default topic ID for demo purposes
 const DEFAULT_TOPIC_ID = "intro-to-ml";
-
-const nodeTypes = { concept: TreeNode };
-
-// Matches stitch_atlas_learning_path_graph/atlas_your_mastery_tree's
-// .connector-line / .connector-line-active / .connector-line-completed.
-const EDGE_STYLE_BY_TARGET_STATUS: Record<NodeStatus, CSSProperties> = {
-  locked: { stroke: "rgba(255,255,255,0.25)", strokeWidth: 2 },
-  unlocked: {
-    stroke: "#4cd7f6",
-    strokeWidth: 2,
-    filter: "drop-shadow(0 0 5px rgba(76,215,246,0.5))",
-  },
-  completed: { stroke: "#4edea3", strokeWidth: 2 },
-};
 
 function TreePageContent() {
   const searchParams = useSearchParams();
@@ -49,12 +35,13 @@ function TreePageContent() {
   const [quizResult, setQuizResult] = useState<QuizResult | null>(null);
   const [quizError, setQuizError] = useState<string | null>(null);
 
+  // Ref that PineCanvas populates so SearchBar can scroll to a node
+  const scrollToRef = useRef<((nodeId: string) => void) | null>(null);
+
   useEffect(() => {
     fetch(`${API_URL}/trees/${topicId}`)
       .then((response) => {
-        if (!response.ok) {
-          throw new Error(`GET /trees/${topicId} failed: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`GET /trees/${topicId} failed: ${response.status}`);
         return response.json() as Promise<TreeResponse>;
       })
       .then((data) => {
@@ -64,65 +51,63 @@ function TreePageContent() {
       .catch((err: Error) => setError(err.message));
   }, [topicId, seedCompleted]);
 
-  const { flowNodes, flowEdges } = useMemo(() => {
-    if (!tree) {
-      return { flowNodes: [] as TreeFlowNode[], flowEdges: [] as Edge[] };
-    }
-    const displayNodes = toDisplayNodes(tree.nodes, tree.edges, completedIds);
-    const statusById = deriveNodeStatuses(tree.nodes, tree.edges, completedIds);
-    const positions = layoutNodesByLevel(displayNodes);
-
-    const nextFlowNodes: TreeFlowNode[] = displayNodes.map((node) => ({
-      id: node.id,
-      type: "concept",
-      position: positions.get(node.id) ?? { x: 0, y: 0 },
-      data: { label: node.label, status: node.status },
-    }));
-
-    const nextFlowEdges: Edge[] = tree.edges.map((edge) => {
-      // Support both from/to and source/target formats
-      const from = edge.from ?? edge.source ?? "";
-      const to = edge.to ?? edge.target ?? "";
-      return {
-        id: `${from}->${to}`,
-        source: from,
-        target: to,
-        style: EDGE_STYLE_BY_TARGET_STATUS[statusById.get(to) ?? "locked"],
-      };
-    });
-
-    return { flowNodes: nextFlowNodes, flowEdges: nextFlowEdges };
+  // Derive display nodes + cluster if large
+  const { allDisplayNodes, clusterResult } = useMemo(() => {
+    if (!tree) return { allDisplayNodes: [], clusterResult: null };
+    const allDisplayNodes = toDisplayNodes(tree.nodes, tree.edges, completedIds);
+    const clusterResult = clusterForDisplay(allDisplayNodes, tree.edges);
+    return { allDisplayNodes, clusterResult };
   }, [tree, completedIds]);
 
+  // Layout computation (bottom-up pine positions)
+  const layout = useMemo(() => {
+    if (!clusterResult) return computePineLayout([]);
+    return computePineLayout(clusterResult.displayNodes);
+  }, [clusterResult]);
+
+  // Interaction state (hover/click chain highlighting)
+  const interaction = usePineInteraction(
+    clusterResult?.displayNodes ?? [],
+    clusterResult?.displayEdges ?? []
+  );
+
+  // Stats
+  const numTiers = layout.numTiers;
+  const statusById = useMemo(() => {
+    if (!tree) return new Map<string, string>();
+    return deriveNodeStatuses(tree.nodes, tree.edges, completedIds);
+  }, [tree, completedIds]);
+
+  const nodesUnlocked = [...statusById.values()].filter(
+    (s) => s === "unlocked" || s === "completed"
+  ).length;
+
+  const percentComplete =
+    tree && tree.nodes.length > 0
+      ? Math.round((completedIds.size / tree.nodes.length) * 100)
+      : 0;
+
   const sourceDocs = useMemo(() => {
-    if (!tree) {
-      return [] as NodeSource[];
-    }
+    if (!tree) return [] as NodeSource[];
     const byDocId = new Map<string, NodeSource>();
     for (const node of tree.nodes) {
       for (const source of node.sources ?? []) {
-        if (!byDocId.has(source.doc_id)) {
-          byDocId.set(source.doc_id, source);
-        }
+        if (!byDocId.has(source.doc_id)) byDocId.set(source.doc_id, source);
       }
     }
     return [...byDocId.values()];
   }, [tree]);
 
-  const percentComplete = tree && tree.nodes.length > 0 ? Math.round((completedIds.size / tree.nodes.length) * 100) : 0;
-
-  // Clicking an unlocked node with a checkpoint quiz opens it; completed and
-  // locked nodes don't respond to clicks (locked has nothing to do yet,
-  // completed already passed its quiz).
-  const handleNodeClick: NodeMouseHandler<TreeFlowNode> = (_event, node) => {
-    if (node.data.status !== "unlocked") {
-      return;
+  // Node click: open quiz OR select for chain highlight
+  function handleNodeClick(nodeId: string) {
+    interaction.onClickNode(nodeId);
+    const status = statusById.get(nodeId);
+    if (status === "unlocked") {
+      setQuizNodeId(nodeId);
+      setQuizResult(null);
+      setQuizError(null);
     }
-    const rawNode = tree?.nodes.find((candidate) => candidate.id === node.id);
-    setQuizNodeId(node.id);
-    setQuizResult(null);
-    setQuizError(null);
-  };
+  }
 
   const closeQuiz = () => {
     setQuizNodeId(null);
@@ -134,19 +119,18 @@ function TreePageContent() {
     setQuizSubmitting(true);
     setQuizError(null);
     try {
-      const response = await fetch(`${API_URL}/trees/${topicId}/nodes/${nodeId}/submit-quiz`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answers }),
-      });
-      if (!response.ok) {
-        throw new Error(`submit-quiz failed: ${response.status}`);
-      }
+      const response = await fetch(
+        `${API_URL}/trees/${topicId}/nodes/${nodeId}/submit-quiz`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ answers }),
+        }
+      );
+      if (!response.ok) throw new Error(`submit-quiz failed: ${response.status}`);
       const body = (await response.json()) as QuizResult;
       setQuizResult(body);
-      if (body.passed) {
-        markCompleted(nodeId);
-      }
+      if (body.passed) markCompleted(nodeId);
     } catch (err) {
       setQuizError(err instanceof Error ? err.message : "Could not submit the quiz.");
     } finally {
@@ -154,7 +138,13 @@ function TreePageContent() {
     }
   };
 
-  const quizNode = quizNodeId ? tree?.nodes.find((candidate) => candidate.id === quizNodeId) : undefined;
+  const quizNode = quizNodeId ? tree?.nodes.find((n) => n.id === quizNodeId) : undefined;
+
+  // Handle search selection: scroll + highlight
+  function handleSearchSelect(nodeId: string) {
+    interaction.onClickNode(nodeId);
+    scrollToRef.current?.(nodeId);
+  }
 
   if (error) {
     return (
@@ -174,15 +164,23 @@ function TreePageContent() {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-surface text-on-surface">
+      {/* Dot-grid background pattern */}
+      <div className="pointer-events-none fixed inset-0 z-0 bg-graph-pattern opacity-20" />
+      <div className="pointer-events-none fixed inset-0 z-0 bg-gradient-to-b from-surface via-surface/90 to-surface" />
+
       <Header />
 
-      <div className="flex flex-1 pt-16">
+      <div className="relative flex flex-1 overflow-hidden pt-16 z-10">
+        {/* Sidebar */}
         <nav className="fixed left-0 top-16 z-40 hidden h-[calc(100vh-64px)] w-64 flex-col border-r border-white/10 bg-surface/70 py-6 text-label-caps backdrop-blur-xl md:flex">
           <div className="mb-8 flex flex-col gap-2 px-6">
             <div className="mb-2 flex h-12 w-12 items-center justify-center rounded bg-primary-container/20 text-primary">
               <Workflow size={24} />
             </div>
-            <h2 className="text-headline-lg-mobile text-xl text-on-surface truncate" title={tree?.topic ?? "Mastery Hub"}>
+            <h2
+              className="truncate text-xl font-semibold text-on-surface"
+              title={tree?.topic ?? "Mastery Hub"}
+            >
               {tree?.topic ?? "Mastery Hub"}
             </h2>
             <p className="text-tertiary">{percentComplete}% Complete</p>
@@ -207,60 +205,104 @@ function TreePageContent() {
               </span>
             </li>
           </ul>
+
+          {/* Progress card in sidebar */}
+          <div className="mt-auto px-6">
+            <div className="glass-panel rounded-xl p-4">
+              <div className="mb-3 flex items-end gap-2">
+                <span className="text-2xl font-bold text-tertiary">{percentComplete}%</span>
+                <span className="pb-0.5 text-stats-mono text-on-surface-variant">Complete</span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-container-high">
+                <div
+                  className="h-full rounded-full bg-tertiary transition-all duration-500"
+                  style={{ width: `${percentComplete}%` }}
+                />
+              </div>
+            </div>
+          </div>
         </nav>
 
-        <main className="relative flex-1 overflow-auto bg-surface-container-lowest bg-graph-pattern p-margin-mobile md:ml-64 md:p-margin-desktop">
-          <div className="mx-auto flex h-full max-w-container-max flex-col gap-gutter md:flex-row">
-            <div className="relative min-h-[600px] flex-1">
-              <ReactFlow
-                nodes={flowNodes}
-                edges={flowEdges}
-                nodeTypes={nodeTypes}
-                onNodeClick={handleNodeClick}
-                proOptions={{ hideAttribution: true }}
-                fitView
-              >
-                <Controls />
-              </ReactFlow>
+        {/* Main panel */}
+        <main className="relative flex flex-1 flex-col overflow-hidden md:ml-64">
+          {/* Top control bar: Stats + Search + Legend */}
+          <div className="glass-panel z-20 border-b border-white/10 px-6 py-3 backdrop-blur-xl">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <StatsStrip
+                nodesShown={clusterResult?.displayNodes.length ?? 0}
+                nodesUnlocked={nodesUnlocked}
+                totalLinks={clusterResult?.displayEdges.length ?? 0}
+                knowledgeTiers={numTiers}
+                totalNodes={clusterResult?.totalNodeCount ?? 0}
+                isFiltered={clusterResult?.isFiltered ?? false}
+              />
+              <SearchBar
+                nodes={allDisplayNodes}
+                onSelect={handleSearchSelect}
+              />
             </div>
 
-            <aside className="flex w-full shrink-0 flex-col gap-gutter md:w-80">
-              <div className="glass-panel flex flex-col gap-4 rounded-xl p-6">
-                <h3 className="text-headline-lg-mobile text-on-surface">Path Progress</h3>
-                <div className="flex items-end gap-2">
-                  <span className="text-display-lg text-tertiary">{percentComplete}%</span>
-                  <span className="pb-2 text-stats-mono text-on-surface-variant">Completed</span>
-                </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-surface-container-high">
-                  <div
-                    className="h-full rounded-full bg-tertiary transition-all"
-                    style={{ width: `${percentComplete}%` }}
-                  />
-                </div>
-              </div>
-
-              <div className="glass-panel flex flex-1 flex-col gap-4 rounded-xl p-6">
-                <h3 className="text-headline-lg-mobile text-on-surface">Source Documents</h3>
-                <div className="flex flex-col gap-3 text-stats-mono">
-                  {sourceDocs.length === 0 && (
-                    <p className="text-on-surface-variant">No source documents recorded yet.</p>
-                  )}
-                  {sourceDocs.map((source) => (
-                    <div
-                      key={source.doc_id}
-                      className="flex items-center gap-3 rounded border border-white/5 bg-surface-container-low p-3 transition-colors hover:border-secondary/50"
-                    >
-                      <FileText size={20} className="shrink-0 text-primary" />
-                      <div className="flex flex-col overflow-hidden">
-                        <span className="truncate text-on-surface">{source.title ?? source.doc_id}</span>
-                        {source.page != null && <span className="text-xs text-outline">Page {source.page}</span>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </aside>
+            {/* Legend row */}
+            <div className="mt-2 flex flex-wrap items-center gap-5 text-label-caps text-on-surface-variant">
+              {[
+                { dot: "bg-secondary shadow-[0_0_6px_#4cd7f6]", label: "Foundational" },
+                { dot: "bg-tertiary shadow-[0_0_6px_#4edea3]", label: "Intermediate" },
+                { dot: "bg-primary shadow-[0_0_6px_#c0c1ff]", label: "Advanced" },
+                { dot: "bg-surface-container-high border border-dashed border-white/30", label: "Locked" },
+              ].map(({ dot, label }) => (
+                <span key={label} className="flex items-center gap-1.5">
+                  <span className={`inline-block h-2.5 w-2.5 rounded-full ${dot}`} />
+                  {label}
+                </span>
+              ))}
+              <span className="ml-2 text-outline italic">
+                Hover = immediate edges · Click = full learning chain
+              </span>
+            </div>
           </div>
+
+          {/* Canvas area */}
+          <div
+            className="relative flex-1 overflow-auto"
+            style={{ background: "transparent" }}
+          >
+            <PineCanvas
+              nodes={clusterResult?.displayNodes ?? []}
+              edges={clusterResult?.displayEdges ?? []}
+              layout={layout}
+              isFocusing={interaction.isFocusing}
+              hoveredId={interaction.hoveredId}
+              selectedId={interaction.selectedId}
+              litNodeIds={interaction.litNodeIds}
+              upstreamEdgeIds={interaction.upstreamEdgeIds}
+              downstreamEdgeIds={interaction.downstreamEdgeIds}
+              onHoverNode={interaction.onHoverNode}
+              onClickNode={handleNodeClick}
+              onClickCanvas={interaction.clearSelection}
+              scrollToRef={scrollToRef}
+            />
+          </div>
+
+          {/* Source docs panel (bottom-right, collapsible) */}
+          {sourceDocs.length > 0 && (
+            <div className="glass-panel absolute bottom-4 right-4 z-20 hidden max-h-64 w-64 flex-col gap-3 overflow-y-auto rounded-xl p-4 text-stats-mono md:flex">
+              <h3 className="text-label-caps text-on-surface-variant">Source Docs</h3>
+              {sourceDocs.map((source) => (
+                <div
+                  key={source.doc_id}
+                  className="flex items-center gap-2 rounded border border-white/5 bg-surface-container-low p-2 transition-colors hover:border-secondary/40"
+                >
+                  <FileText size={14} className="shrink-0 text-primary" />
+                  <div className="overflow-hidden">
+                    <span className="block truncate text-on-surface">{source.title ?? source.doc_id}</span>
+                    {source.page != null && (
+                      <span className="text-xs text-outline">Page {source.page}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </main>
       </div>
 
@@ -293,4 +335,3 @@ export default function TreePage() {
     </React.Suspense>
   );
 }
-
