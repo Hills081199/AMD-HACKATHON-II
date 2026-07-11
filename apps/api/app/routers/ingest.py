@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db, SessionLocal
 from app.models.user import User, UserTier
 from app.models.topic import Topic, Document, Node, Edge, ProcessingStatus
-from app.auth.dependencies import get_current_user, get_current_user_mock
+from app.auth.dependencies import get_current_user
 from app.services.document_processor import process_documents, extract_text
 
 router = APIRouter()
@@ -167,7 +167,7 @@ def process_topic_documents_sync(topic_id: str):
 async def ingest_documents(
     background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(...),
-    current_user: User = Depends(get_current_user_mock),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
@@ -262,7 +262,7 @@ async def ingest_documents(
 @router.get("/ingest/{topic_id}/status")
 async def get_processing_status(
     topic_id: str,
-    current_user: User = Depends(get_current_user_mock),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
