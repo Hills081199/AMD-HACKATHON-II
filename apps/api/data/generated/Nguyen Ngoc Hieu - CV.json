@@ -1,0 +1,2459 @@
+{
+  "topic": "Topic 7be702f2",
+  "topic_id": "7be702f2-e2bd-436e-9589-4c4274e2d925",
+  "generated_at": "2026-07-11T02:49:18.272656Z",
+  "document_count": 1,
+  "nodes": [
+    {
+      "id": "concept_004",
+      "title": "Scikit-learn",
+      "concept_key": "scikit_learn",
+      "level": 0,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 1
+        }
+      ],
+      "position": {
+        "x": -1540.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_017",
+      "title": "Flask",
+      "concept_key": "flask",
+      "level": 0,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": -1320.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_018",
+      "title": "MongoDB",
+      "concept_key": "mongodb",
+      "level": 0,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": -1100.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_022",
+      "title": "Docker",
+      "concept_key": "docker",
+      "level": 0,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 2
+        },
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": -880.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_024",
+      "title": "Automated Guided Vehicle (AGV)",
+      "concept_key": "automated_guided_vehicle_agv",
+      "level": 0,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": -660.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_033",
+      "title": "Role-based access control",
+      "concept_key": "role_based_access_control",
+      "level": 0,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": -440.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_034",
+      "title": "PostgreSQL",
+      "concept_key": "postgresql",
+      "level": 0,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": -220.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_035",
+      "title": "WebSockets",
+      "concept_key": "websockets",
+      "level": 0,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": 0.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_037",
+      "title": "Requirement analysis",
+      "concept_key": "requirement_analysis",
+      "level": 0,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": 220.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_052",
+      "title": "Agile/Scrum Methodology",
+      "concept_key": "agile_scrum_methodology",
+      "level": 0,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 4
+        }
+      ],
+      "position": {
+        "x": 440.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_058",
+      "title": "A* Search Algorithm",
+      "concept_key": "a_search_algorithm",
+      "level": 0,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 5
+        }
+      ],
+      "position": {
+        "x": 660.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_059",
+      "title": "Euler's Nine-Point Circle",
+      "concept_key": "euler_s_nine_point_circle",
+      "level": 0,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 5
+        }
+      ],
+      "position": {
+        "x": 880.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_060",
+      "title": "Ptolemy's Theorem",
+      "concept_key": "ptolemy_s_theorem",
+      "level": 0,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 5
+        }
+      ],
+      "position": {
+        "x": 1100.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_061",
+      "title": "IELTS Certification",
+      "concept_key": "ielts_certification",
+      "level": 0,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 5
+        }
+      ],
+      "position": {
+        "x": 1320.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_062",
+      "title": "APTIS ESOL B2 Qualification",
+      "concept_key": "aptis_esol_b2_qualification",
+      "level": 0,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 5
+        }
+      ],
+      "position": {
+        "x": 1540.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_038",
+      "title": "On-site deployment",
+      "concept_key": "on_site_deployment",
+      "level": 1,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 100,
+      "estimated_minutes": 15,
+      "status": "locked",
+      "prerequisites": [
+        "concept_017"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": -880.0,
+        "y": 160
+      }
+    },
+    {
+      "id": "concept_048",
+      "title": "Voice interaction",
+      "concept_key": "voice_interaction",
+      "level": 1,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 100,
+      "estimated_minutes": 15,
+      "status": "locked",
+      "prerequisites": [
+        "concept_017"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": -660.0,
+        "y": 160
+      }
+    },
+    {
+      "id": "concept_001",
+      "title": "Python for AI",
+      "concept_key": "python_for_ai",
+      "level": 1,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 100,
+      "estimated_minutes": 15,
+      "status": "locked",
+      "prerequisites": [
+        "concept_004",
+        "concept_017"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 1
+        }
+      ],
+      "position": {
+        "x": -440.0,
+        "y": 160
+      }
+    },
+    {
+      "id": "concept_026",
+      "title": "REST API design",
+      "concept_key": "rest_api_design",
+      "level": 1,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 100,
+      "estimated_minutes": 15,
+      "status": "locked",
+      "prerequisites": [
+        "concept_017"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": -220.0,
+        "y": 160
+      }
+    },
+    {
+      "id": "concept_015",
+      "title": "C++ for inference",
+      "concept_key": "c_for_inference",
+      "level": 1,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 100,
+      "estimated_minutes": 15,
+      "status": "locked",
+      "prerequisites": [
+        "concept_022"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": 0.0,
+        "y": 160
+      }
+    },
+    {
+      "id": "concept_027",
+      "title": "Asynchronous messaging",
+      "concept_key": "asynchronous_messaging",
+      "level": 1,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 100,
+      "estimated_minutes": 15,
+      "status": "locked",
+      "prerequisites": [
+        "concept_017",
+        "concept_022"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 2
+        },
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": 220.0,
+        "y": 160
+      }
+    },
+    {
+      "id": "concept_054",
+      "title": "Time-Series Data Storage",
+      "concept_key": "time_series_data_storage",
+      "level": 1,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 100,
+      "estimated_minutes": 15,
+      "status": "locked",
+      "prerequisites": [
+        "concept_018",
+        "concept_034"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 4
+        }
+      ],
+      "position": {
+        "x": 440.0,
+        "y": 160
+      }
+    },
+    {
+      "id": "concept_057",
+      "title": "RRT Path Planning Algorithm",
+      "concept_key": "rrt_path_planning_algorithm",
+      "level": 1,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 100,
+      "estimated_minutes": 15,
+      "status": "locked",
+      "prerequisites": [
+        "concept_024",
+        "concept_058"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 5
+        }
+      ],
+      "position": {
+        "x": 660.0,
+        "y": 160
+      }
+    },
+    {
+      "id": "concept_043",
+      "title": "LangChain",
+      "concept_key": "langchain",
+      "level": 1,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 100,
+      "estimated_minutes": 15,
+      "status": "locked",
+      "prerequisites": [
+        "concept_062"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": 880.0,
+        "y": 160
+      }
+    },
+    {
+      "id": "concept_047",
+      "title": "Google Speech-to-Text",
+      "concept_key": "google_speech_to_text",
+      "level": 2,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 150,
+      "estimated_minutes": 20,
+      "status": "locked",
+      "prerequisites": [
+        "concept_048"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": -1100.0,
+        "y": 320
+      }
+    },
+    {
+      "id": "concept_044",
+      "title": "Qdrant",
+      "concept_key": "qdrant",
+      "level": 2,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 150,
+      "estimated_minutes": 20,
+      "status": "locked",
+      "prerequisites": [
+        "concept_001",
+        "concept_052"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": -880.0,
+        "y": 320
+      }
+    },
+    {
+      "id": "concept_002",
+      "title": "PyTorch",
+      "concept_key": "pytorch",
+      "level": 2,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 150,
+      "estimated_minutes": 20,
+      "status": "locked",
+      "prerequisites": [
+        "concept_001",
+        "concept_062"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 1
+        }
+      ],
+      "position": {
+        "x": -660.0,
+        "y": 320
+      }
+    },
+    {
+      "id": "concept_008",
+      "title": "Virtual Assistant",
+      "concept_key": "virtual_assistant",
+      "level": 2,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 150,
+      "estimated_minutes": 20,
+      "status": "locked",
+      "prerequisites": [
+        "concept_001",
+        "concept_033",
+        "concept_037",
+        "concept_048"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 1
+        }
+      ],
+      "position": {
+        "x": -440.0,
+        "y": 320
+      }
+    },
+    {
+      "id": "concept_056",
+      "title": "Automated AI Writing Evaluation",
+      "concept_key": "automated_ai_writing_evaluation",
+      "level": 2,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 150,
+      "estimated_minutes": 20,
+      "status": "locked",
+      "prerequisites": [
+        "concept_001",
+        "concept_018",
+        "concept_034"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 4
+        }
+      ],
+      "position": {
+        "x": -220.0,
+        "y": 320
+      }
+    },
+    {
+      "id": "concept_003",
+      "title": "OpenCV",
+      "concept_key": "opencv",
+      "level": 2,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 150,
+      "estimated_minutes": 20,
+      "status": "locked",
+      "prerequisites": [
+        "concept_001",
+        "concept_062"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 1
+        }
+      ],
+      "position": {
+        "x": 0.0,
+        "y": 320
+      }
+    },
+    {
+      "id": "concept_041",
+      "title": "TensorFlow",
+      "concept_key": "tensorflow",
+      "level": 2,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 150,
+      "estimated_minutes": 20,
+      "status": "locked",
+      "prerequisites": [
+        "concept_001",
+        "concept_062"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 1
+        },
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": 220.0,
+        "y": 320
+      }
+    },
+    {
+      "id": "concept_023",
+      "title": "Microservices",
+      "concept_key": "microservices",
+      "level": 2,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 150,
+      "estimated_minutes": 20,
+      "status": "locked",
+      "prerequisites": [
+        "concept_022",
+        "concept_026",
+        "concept_052"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": 440.0,
+        "y": 320
+      }
+    },
+    {
+      "id": "concept_030",
+      "title": "Robot API integration",
+      "concept_key": "robot_api_integration",
+      "level": 2,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 150,
+      "estimated_minutes": 20,
+      "status": "locked",
+      "prerequisites": [
+        "concept_018",
+        "concept_022",
+        "concept_026"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": 660.0,
+        "y": 320
+      }
+    },
+    {
+      "id": "concept_005",
+      "title": "Full-stack development",
+      "concept_key": "full_stack_development",
+      "level": 2,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 150,
+      "estimated_minutes": 20,
+      "status": "locked",
+      "prerequisites": [
+        "concept_018",
+        "concept_022",
+        "concept_026"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 1
+        }
+      ],
+      "position": {
+        "x": 880.0,
+        "y": 320
+      }
+    },
+    {
+      "id": "concept_053",
+      "title": "MQTT Protocol for IoT",
+      "concept_key": "mqtt_protocol_for_iot",
+      "level": 2,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 150,
+      "estimated_minutes": 20,
+      "status": "locked",
+      "prerequisites": [
+        "concept_027"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        },
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 4
+        }
+      ],
+      "position": {
+        "x": 1100.0,
+        "y": 320
+      }
+    },
+    {
+      "id": "concept_025",
+      "title": "Path optimization for AGVs",
+      "concept_key": "path_optimization_for_agvs",
+      "level": 3,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 175,
+      "estimated_minutes": 25,
+      "status": "locked",
+      "prerequisites": [
+        "concept_002",
+        "concept_037",
+        "concept_057"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": -1210.0,
+        "y": 480
+      }
+    },
+    {
+      "id": "concept_012",
+      "title": "Model conversion (PyTorch to Caffe)",
+      "concept_key": "model_conversion_pytorch_to_caffe",
+      "level": 3,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 175,
+      "estimated_minutes": 25,
+      "status": "locked",
+      "prerequisites": [
+        "concept_002"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": -990.0,
+        "y": 480
+      }
+    },
+    {
+      "id": "concept_040",
+      "title": "Skeletal pose estimation",
+      "concept_key": "skeletal_pose_estimation",
+      "level": 3,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 175,
+      "estimated_minutes": 25,
+      "status": "locked",
+      "prerequisites": [
+        "concept_002",
+        "concept_003"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": -770.0,
+        "y": 480
+      }
+    },
+    {
+      "id": "concept_031",
+      "title": "Sensor data processing",
+      "concept_key": "sensor_data_processing",
+      "level": 3,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 175,
+      "estimated_minutes": 25,
+      "status": "locked",
+      "prerequisites": [
+        "concept_003",
+        "concept_024"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": -550.0,
+        "y": 480
+      }
+    },
+    {
+      "id": "concept_010",
+      "title": "Scene text detection",
+      "concept_key": "scene_text_detection",
+      "level": 3,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 175,
+      "estimated_minutes": 25,
+      "status": "locked",
+      "prerequisites": [
+        "concept_002",
+        "concept_003"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": -330.0,
+        "y": 480
+      }
+    },
+    {
+      "id": "concept_045",
+      "title": "Retrieval-Augmented Generation (RAG)",
+      "concept_key": "retrieval_augmented_generation_rag",
+      "level": 3,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 175,
+      "estimated_minutes": 25,
+      "status": "locked",
+      "prerequisites": [
+        "concept_002",
+        "concept_041",
+        "concept_044",
+        "concept_043"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": -110.0,
+        "y": 480
+      }
+    },
+    {
+      "id": "concept_014",
+      "title": "Xilinx hardware acceleration",
+      "concept_key": "xilinx_hardware_acceleration",
+      "level": 3,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 175,
+      "estimated_minutes": 25,
+      "status": "locked",
+      "prerequisites": [
+        "concept_002",
+        "concept_041",
+        "concept_037",
+        "concept_015"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": 110.0,
+        "y": 480
+      }
+    },
+    {
+      "id": "concept_021",
+      "title": "RabbitMQ",
+      "concept_key": "rabbitmq",
+      "level": 3,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 175,
+      "estimated_minutes": 25,
+      "status": "locked",
+      "prerequisites": [
+        "concept_062",
+        "concept_033",
+        "concept_037",
+        "concept_023",
+        "concept_027"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 2
+        },
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": 330.0,
+        "y": 480
+      }
+    },
+    {
+      "id": "concept_036",
+      "title": "Redis Pub/Sub",
+      "concept_key": "redis_pub_sub",
+      "level": 3,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 175,
+      "estimated_minutes": 25,
+      "status": "locked",
+      "prerequisites": [
+        "concept_023",
+        "concept_027"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": 550.0,
+        "y": 480
+      }
+    },
+    {
+      "id": "concept_049",
+      "title": "VR simulation in Unity",
+      "concept_key": "vr_simulation_in_unity",
+      "level": 3,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 175,
+      "estimated_minutes": 25,
+      "status": "locked",
+      "prerequisites": [
+        "concept_030"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": 770.0,
+        "y": 480
+      }
+    },
+    {
+      "id": "concept_029",
+      "title": "NestJS",
+      "concept_key": "nestjs",
+      "level": 3,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 175,
+      "estimated_minutes": 25,
+      "status": "locked",
+      "prerequisites": [
+        "concept_062",
+        "concept_005",
+        "concept_033",
+        "concept_037",
+        "concept_027"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 1
+        },
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": 990.0,
+        "y": 480
+      }
+    },
+    {
+      "id": "concept_019",
+      "title": "Session continuation",
+      "concept_key": "session_continuation",
+      "level": 3,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 175,
+      "estimated_minutes": 25,
+      "status": "locked",
+      "prerequisites": [
+        "concept_005"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": 1210.0,
+        "y": 480
+      }
+    },
+    {
+      "id": "concept_039",
+      "title": "VNect model",
+      "concept_key": "vnect_model",
+      "level": 4,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 200,
+      "estimated_minutes": 30,
+      "status": "locked",
+      "prerequisites": [
+        "concept_041",
+        "concept_040",
+        "concept_038"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": -770.0,
+        "y": 640
+      }
+    },
+    {
+      "id": "concept_011",
+      "title": "CRAFT model",
+      "concept_key": "craft_model",
+      "level": 4,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 200,
+      "estimated_minutes": 30,
+      "status": "locked",
+      "prerequisites": [
+        "concept_010"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": -550.0,
+        "y": 640
+      }
+    },
+    {
+      "id": "concept_013",
+      "title": "VitisAI",
+      "concept_key": "vitisai",
+      "level": 4,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 200,
+      "estimated_minutes": 30,
+      "status": "locked",
+      "prerequisites": [
+        "concept_012",
+        "concept_014",
+        "concept_031"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": -330.0,
+        "y": 640
+      }
+    },
+    {
+      "id": "concept_007",
+      "title": "Robotics R&D",
+      "concept_key": "robotics_r_d",
+      "level": 4,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 200,
+      "estimated_minutes": 30,
+      "status": "locked",
+      "prerequisites": [
+        "concept_012",
+        "concept_031",
+        "concept_037",
+        "concept_038",
+        "concept_049",
+        "concept_061"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 1
+        }
+      ],
+      "position": {
+        "x": -110.0,
+        "y": 640
+      }
+    },
+    {
+      "id": "concept_042",
+      "title": "Rasa",
+      "concept_key": "rasa",
+      "level": 4,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 200,
+      "estimated_minutes": 30,
+      "status": "locked",
+      "prerequisites": [
+        "concept_008",
+        "concept_019",
+        "concept_038"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": 110.0,
+        "y": 640
+      }
+    },
+    {
+      "id": "concept_020",
+      "title": "Java Spring Boot",
+      "concept_key": "java_spring_boot",
+      "level": 4,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 200,
+      "estimated_minutes": 30,
+      "status": "locked",
+      "prerequisites": [
+        "concept_019"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": 330.0,
+        "y": 640
+      }
+    },
+    {
+      "id": "concept_016",
+      "title": "ReactJS",
+      "concept_key": "reactjs",
+      "level": 4,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 200,
+      "estimated_minutes": 30,
+      "status": "locked",
+      "prerequisites": [
+        "concept_019",
+        "concept_038",
+        "concept_052"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 1
+        },
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 2
+        },
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": 550.0,
+        "y": 640
+      }
+    },
+    {
+      "id": "concept_006",
+      "title": "Django",
+      "concept_key": "django",
+      "level": 4,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 200,
+      "estimated_minutes": 30,
+      "status": "locked",
+      "prerequisites": [
+        "concept_004",
+        "concept_019",
+        "concept_033",
+        "concept_034",
+        "concept_037",
+        "concept_038"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 1
+        },
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": 770.0,
+        "y": 640
+      }
+    },
+    {
+      "id": "concept_046",
+      "title": "Agentic RAG pipeline",
+      "concept_key": "agentic_rag_pipeline",
+      "level": 5,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 225,
+      "estimated_minutes": 35,
+      "status": "locked",
+      "prerequisites": [
+        "concept_042",
+        "concept_045",
+        "concept_034",
+        "concept_061",
+        "concept_021"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": -330.0,
+        "y": 800
+      }
+    },
+    {
+      "id": "concept_009",
+      "title": "Metaverse Integration",
+      "concept_key": "metaverse_integration",
+      "level": 5,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 225,
+      "estimated_minutes": 35,
+      "status": "locked",
+      "prerequisites": [
+        "concept_042",
+        "concept_029",
+        "concept_034",
+        "concept_049",
+        "concept_016"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 1
+        }
+      ],
+      "position": {
+        "x": -110.0,
+        "y": 800
+      }
+    },
+    {
+      "id": "concept_050",
+      "title": "WebSocket Real-Time Communication",
+      "concept_key": "websocket_real_time_communication",
+      "level": 5,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 225,
+      "estimated_minutes": 35,
+      "status": "locked",
+      "prerequisites": [
+        "concept_006",
+        "concept_035"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 4
+        }
+      ],
+      "position": {
+        "x": 110.0,
+        "y": 800
+      }
+    },
+    {
+      "id": "concept_051",
+      "title": "Biometric Timekeeping Integration",
+      "concept_key": "biometric_timekeeping_integration",
+      "level": 5,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 225,
+      "estimated_minutes": 35,
+      "status": "locked",
+      "prerequisites": [
+        "concept_006"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 4
+        }
+      ],
+      "position": {
+        "x": 330.0,
+        "y": 800
+      }
+    },
+    {
+      "id": "concept_055",
+      "title": "Multi-Agent AI Collaboration",
+      "concept_key": "multi_agent_ai_collaboration",
+      "level": 6,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 250,
+      "estimated_minutes": 40,
+      "status": "locked",
+      "prerequisites": [
+        "concept_056",
+        "concept_046",
+        "concept_049"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 4
+        }
+      ],
+      "position": {
+        "x": -110.0,
+        "y": 960
+      }
+    },
+    {
+      "id": "concept_032",
+      "title": "Live visualization",
+      "concept_key": "live_visualization",
+      "level": 6,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 250,
+      "estimated_minutes": 40,
+      "status": "locked",
+      "prerequisites": [
+        "concept_031",
+        "concept_050",
+        "concept_030"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": 110.0,
+        "y": 960
+      }
+    },
+    {
+      "id": "concept_028",
+      "title": "Integration with physical AGV systems",
+      "concept_key": "integration_with_physical_agv_systems",
+      "level": 7,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 275,
+      "estimated_minutes": 45,
+      "status": "locked",
+      "prerequisites": [
+        "concept_007",
+        "concept_008",
+        "concept_041",
+        "concept_029",
+        "concept_016",
+        "concept_032",
+        "concept_021",
+        "concept_036"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen Ngoc Hieu - CV.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": 0.0,
+        "y": 1120
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "concept_001",
+      "to": "concept_044"
+    },
+    {
+      "from": "concept_001",
+      "to": "concept_002"
+    },
+    {
+      "from": "concept_001",
+      "to": "concept_008"
+    },
+    {
+      "from": "concept_001",
+      "to": "concept_056"
+    },
+    {
+      "from": "concept_001",
+      "to": "concept_003"
+    },
+    {
+      "from": "concept_001",
+      "to": "concept_041"
+    },
+    {
+      "from": "concept_002",
+      "to": "concept_025"
+    },
+    {
+      "from": "concept_002",
+      "to": "concept_040"
+    },
+    {
+      "from": "concept_002",
+      "to": "concept_045"
+    },
+    {
+      "from": "concept_002",
+      "to": "concept_010"
+    },
+    {
+      "from": "concept_002",
+      "to": "concept_014"
+    },
+    {
+      "from": "concept_002",
+      "to": "concept_012"
+    },
+    {
+      "from": "concept_003",
+      "to": "concept_040"
+    },
+    {
+      "from": "concept_003",
+      "to": "concept_031"
+    },
+    {
+      "from": "concept_003",
+      "to": "concept_010"
+    },
+    {
+      "from": "concept_004",
+      "to": "concept_006"
+    },
+    {
+      "from": "concept_004",
+      "to": "concept_001"
+    },
+    {
+      "from": "concept_007",
+      "to": "concept_028"
+    },
+    {
+      "from": "concept_008",
+      "to": "concept_042"
+    },
+    {
+      "from": "concept_008",
+      "to": "concept_028"
+    },
+    {
+      "from": "concept_012",
+      "to": "concept_013"
+    },
+    {
+      "from": "concept_012",
+      "to": "concept_007"
+    },
+    {
+      "from": "concept_017",
+      "to": "concept_027"
+    },
+    {
+      "from": "concept_017",
+      "to": "concept_038"
+    },
+    {
+      "from": "concept_017",
+      "to": "concept_048"
+    },
+    {
+      "from": "concept_017",
+      "to": "concept_001"
+    },
+    {
+      "from": "concept_017",
+      "to": "concept_026"
+    },
+    {
+      "from": "concept_041",
+      "to": "concept_039"
+    },
+    {
+      "from": "concept_041",
+      "to": "concept_028"
+    },
+    {
+      "from": "concept_041",
+      "to": "concept_045"
+    },
+    {
+      "from": "concept_041",
+      "to": "concept_014"
+    },
+    {
+      "from": "concept_042",
+      "to": "concept_046"
+    },
+    {
+      "from": "concept_042",
+      "to": "concept_009"
+    },
+    {
+      "from": "concept_044",
+      "to": "concept_045"
+    },
+    {
+      "from": "concept_045",
+      "to": "concept_046"
+    },
+    {
+      "from": "concept_056",
+      "to": "concept_055"
+    },
+    {
+      "from": "concept_010",
+      "to": "concept_011"
+    },
+    {
+      "from": "concept_014",
+      "to": "concept_013"
+    },
+    {
+      "from": "concept_040",
+      "to": "concept_039"
+    },
+    {
+      "from": "concept_046",
+      "to": "concept_055"
+    },
+    {
+      "from": "concept_062",
+      "to": "concept_029"
+    },
+    {
+      "from": "concept_062",
+      "to": "concept_002"
+    },
+    {
+      "from": "concept_062",
+      "to": "concept_043"
+    },
+    {
+      "from": "concept_062",
+      "to": "concept_021"
+    },
+    {
+      "from": "concept_062",
+      "to": "concept_003"
+    },
+    {
+      "from": "concept_062",
+      "to": "concept_041"
+    },
+    {
+      "from": "concept_031",
+      "to": "concept_013"
+    },
+    {
+      "from": "concept_031",
+      "to": "concept_007"
+    },
+    {
+      "from": "concept_031",
+      "to": "concept_032"
+    },
+    {
+      "from": "concept_006",
+      "to": "concept_050"
+    },
+    {
+      "from": "concept_006",
+      "to": "concept_051"
+    },
+    {
+      "from": "concept_005",
+      "to": "concept_029"
+    },
+    {
+      "from": "concept_005",
+      "to": "concept_019"
+    },
+    {
+      "from": "concept_018",
+      "to": "concept_005"
+    },
+    {
+      "from": "concept_018",
+      "to": "concept_056"
+    },
+    {
+      "from": "concept_018",
+      "to": "concept_054"
+    },
+    {
+      "from": "concept_018",
+      "to": "concept_030"
+    },
+    {
+      "from": "concept_019",
+      "to": "concept_042"
+    },
+    {
+      "from": "concept_019",
+      "to": "concept_020"
+    },
+    {
+      "from": "concept_019",
+      "to": "concept_016"
+    },
+    {
+      "from": "concept_019",
+      "to": "concept_006"
+    },
+    {
+      "from": "concept_022",
+      "to": "concept_015"
+    },
+    {
+      "from": "concept_022",
+      "to": "concept_005"
+    },
+    {
+      "from": "concept_022",
+      "to": "concept_023"
+    },
+    {
+      "from": "concept_022",
+      "to": "concept_030"
+    },
+    {
+      "from": "concept_022",
+      "to": "concept_027"
+    },
+    {
+      "from": "concept_026",
+      "to": "concept_023"
+    },
+    {
+      "from": "concept_026",
+      "to": "concept_030"
+    },
+    {
+      "from": "concept_026",
+      "to": "concept_005"
+    },
+    {
+      "from": "concept_029",
+      "to": "concept_028"
+    },
+    {
+      "from": "concept_029",
+      "to": "concept_009"
+    },
+    {
+      "from": "concept_033",
+      "to": "concept_029"
+    },
+    {
+      "from": "concept_033",
+      "to": "concept_008"
+    },
+    {
+      "from": "concept_033",
+      "to": "concept_021"
+    },
+    {
+      "from": "concept_033",
+      "to": "concept_006"
+    },
+    {
+      "from": "concept_034",
+      "to": "concept_006"
+    },
+    {
+      "from": "concept_034",
+      "to": "concept_046"
+    },
+    {
+      "from": "concept_034",
+      "to": "concept_009"
+    },
+    {
+      "from": "concept_034",
+      "to": "concept_054"
+    },
+    {
+      "from": "concept_034",
+      "to": "concept_056"
+    },
+    {
+      "from": "concept_037",
+      "to": "concept_029"
+    },
+    {
+      "from": "concept_037",
+      "to": "concept_008"
+    },
+    {
+      "from": "concept_037",
+      "to": "concept_025"
+    },
+    {
+      "from": "concept_037",
+      "to": "concept_021"
+    },
+    {
+      "from": "concept_037",
+      "to": "concept_014"
+    },
+    {
+      "from": "concept_037",
+      "to": "concept_006"
+    },
+    {
+      "from": "concept_037",
+      "to": "concept_007"
+    },
+    {
+      "from": "concept_038",
+      "to": "concept_042"
+    },
+    {
+      "from": "concept_038",
+      "to": "concept_039"
+    },
+    {
+      "from": "concept_038",
+      "to": "concept_016"
+    },
+    {
+      "from": "concept_038",
+      "to": "concept_006"
+    },
+    {
+      "from": "concept_038",
+      "to": "concept_007"
+    },
+    {
+      "from": "concept_050",
+      "to": "concept_032"
+    },
+    {
+      "from": "concept_024",
+      "to": "concept_057"
+    },
+    {
+      "from": "concept_024",
+      "to": "concept_031"
+    },
+    {
+      "from": "concept_030",
+      "to": "concept_032"
+    },
+    {
+      "from": "concept_030",
+      "to": "concept_049"
+    },
+    {
+      "from": "concept_049",
+      "to": "concept_007"
+    },
+    {
+      "from": "concept_049",
+      "to": "concept_055"
+    },
+    {
+      "from": "concept_049",
+      "to": "concept_009"
+    },
+    {
+      "from": "concept_061",
+      "to": "concept_007"
+    },
+    {
+      "from": "concept_061",
+      "to": "concept_046"
+    },
+    {
+      "from": "concept_048",
+      "to": "concept_008"
+    },
+    {
+      "from": "concept_048",
+      "to": "concept_047"
+    },
+    {
+      "from": "concept_016",
+      "to": "concept_028"
+    },
+    {
+      "from": "concept_016",
+      "to": "concept_009"
+    },
+    {
+      "from": "concept_052",
+      "to": "concept_044"
+    },
+    {
+      "from": "concept_052",
+      "to": "concept_016"
+    },
+    {
+      "from": "concept_052",
+      "to": "concept_023"
+    },
+    {
+      "from": "concept_015",
+      "to": "concept_014"
+    },
+    {
+      "from": "concept_023",
+      "to": "concept_021"
+    },
+    {
+      "from": "concept_023",
+      "to": "concept_036"
+    },
+    {
+      "from": "concept_027",
+      "to": "concept_021"
+    },
+    {
+      "from": "concept_027",
+      "to": "concept_036"
+    },
+    {
+      "from": "concept_027",
+      "to": "concept_053"
+    },
+    {
+      "from": "concept_027",
+      "to": "concept_029"
+    },
+    {
+      "from": "concept_032",
+      "to": "concept_028"
+    },
+    {
+      "from": "concept_021",
+      "to": "concept_028"
+    },
+    {
+      "from": "concept_021",
+      "to": "concept_046"
+    },
+    {
+      "from": "concept_036",
+      "to": "concept_028"
+    },
+    {
+      "from": "concept_057",
+      "to": "concept_025"
+    },
+    {
+      "from": "concept_058",
+      "to": "concept_057"
+    },
+    {
+      "from": "concept_035",
+      "to": "concept_050"
+    },
+    {
+      "from": "concept_043",
+      "to": "concept_045"
+    }
+  ],
+  "dropped_edges": [],
+  "user_progress": {
+    "completed_nodes": [],
+    "unlocked_nodes": [
+      "concept_004",
+      "concept_017",
+      "concept_018",
+      "concept_022",
+      "concept_024",
+      "concept_033",
+      "concept_034",
+      "concept_035",
+      "concept_037",
+      "concept_052",
+      "concept_058",
+      "concept_059",
+      "concept_060",
+      "concept_061",
+      "concept_062"
+    ],
+    "locked_nodes": [
+      "concept_038",
+      "concept_048",
+      "concept_001",
+      "concept_026",
+      "concept_015",
+      "concept_027",
+      "concept_054",
+      "concept_057",
+      "concept_043",
+      "concept_047",
+      "concept_044",
+      "concept_002",
+      "concept_008",
+      "concept_056",
+      "concept_003",
+      "concept_041",
+      "concept_023",
+      "concept_030",
+      "concept_005",
+      "concept_053",
+      "concept_025",
+      "concept_012",
+      "concept_040",
+      "concept_031",
+      "concept_010",
+      "concept_045",
+      "concept_014",
+      "concept_021",
+      "concept_036",
+      "concept_049",
+      "concept_029",
+      "concept_019",
+      "concept_039",
+      "concept_011",
+      "concept_013",
+      "concept_007",
+      "concept_042",
+      "concept_020",
+      "concept_016",
+      "concept_006",
+      "concept_046",
+      "concept_009",
+      "concept_050",
+      "concept_051",
+      "concept_055",
+      "concept_032",
+      "concept_028"
+    ],
+    "total_nodes": 62,
+    "percent_complete": 0
+  }
+}

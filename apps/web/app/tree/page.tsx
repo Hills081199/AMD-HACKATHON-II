@@ -1,11 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { BookOpen, ChevronDown, ChevronRight, ChevronUp, FileText, Network, Settings2, Workflow } from "lucide-react";
-
-import { userApi } from "../lib/api";
-import type { TopicSummary } from "../lib/types";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
+import { FileText, Network, Settings2, Workflow } from "lucide-react";
 import React from "react";
 
 import { Header } from "../components/Header";
@@ -18,19 +15,17 @@ import { computePineLayout } from "./pineLayout";
 import { clusterForDisplay } from "./clusterNodes";
 import { useTreeProgressStore } from "./progressStore";
 import { deriveNodeStatuses, seedCompletedIds, toDisplayNodes } from "./unlock";
-import type { TreeResponse } from "./types";
+import type { NodeSource, RawTreeNode, TreeResponse } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const DEFAULT_TOPIC_ID = "intro-to-ml";
 
 function TreePageContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const topicId = searchParams.get("topic") || DEFAULT_TOPIC_ID;
 
   const [tree, setTree] = useState<TreeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [userTopics, setUserTopics] = useState<TopicSummary[]>([]);
   const completedIds = useTreeProgressStore((state) => state.completedIds);
   const seedCompleted = useTreeProgressStore((state) => state.seedCompleted);
   const markCompleted = useTreeProgressStore((state) => state.markCompleted);
@@ -39,13 +34,13 @@ function TreePageContent() {
   const [quizSubmitting, setQuizSubmitting] = useState(false);
   const [quizResult, setQuizResult] = useState<QuizResult | null>(null);
   const [quizError, setQuizError] = useState<string | null>(null);
-  const [quizGenerating, setQuizGenerating] = useState(false);
-  const [navPanelOpen, setNavPanelOpen] = useState(false);
+
+  // State for on-demand lesson/quiz generation
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // Ref that PineCanvas populates so SearchBar can scroll to a node
   const scrollToRef = useRef<((nodeId: string) => void) | null>(null);
 
-  // Fetch the current tree
   useEffect(() => {
     fetch(`${API_URL}/trees/${topicId}`)
       .then((response) => {
@@ -59,15 +54,55 @@ function TreePageContent() {
       .catch((err: Error) => setError(err.message));
   }, [topicId, seedCompleted]);
 
-  // Fetch user's topics for navigation
-  useEffect(() => {
-    userApi
-      .getTopics()
-      .then((topics) => setUserTopics(topics.filter((t) => t.status === "completed")))
-      .catch(() => {
-        // User not logged in or no topics - silently ignore
-      });
+  /** Update a single node in the tree state (after lesson/quiz generation) */
+  const patchNode = useCallback((nodeId: string, patch: Partial<RawTreeNode>) => {
+    setTree((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        nodes: prev.nodes.map((n) => (n.id === nodeId ? { ...n, ...patch } : n)),
+      };
+    });
   }, []);
+
+  /** Call the backend to generate lesson + quiz for a node on demand.
+   * Uses cache: if the node already has lesson.summary, skips the API call. */
+  const generateLesson = useCallback(
+    async (node: RawTreeNode) => {
+      const alreadyHasContent =
+        node.lesson?.summary && node.lesson.summary.trim().length > 0 &&
+        node.quiz?.questions && node.quiz.questions.length > 0;
+
+      if (alreadyHasContent) {
+        // Content already available — open modal immediately, no generation needed
+        return;
+      }
+
+      setIsGenerating(true);
+      try {
+        const response = await fetch(
+          `${API_URL}/trees/${topicId}/nodes/${node.id}/generate-lesson`,
+          { method: "POST" }
+        );
+        if (!response.ok) throw new Error(`generate-lesson failed: ${response.status}`);
+        const body = await response.json();
+        // Patch the node in local state so the modal re-renders with new content
+        patchNode(node.id, {
+          lesson: {
+            summary: body.lesson ?? "",
+            real_world_example: body.example ?? "",
+          },
+          quiz: body.quiz ?? null,
+        });
+      } catch (err) {
+        console.error("[TreePage] generate-lesson error:", err);
+        // Don't block the modal — just show empty content
+      } finally {
+        setIsGenerating(false);
+      }
+    },
+    [topicId, patchNode]
+  );
 
   // Derive display nodes + cluster if large
   const { allDisplayNodes, clusterResult } = useMemo(() => {
@@ -105,6 +140,17 @@ function TreePageContent() {
       ? Math.round((completedIds.size / tree.nodes.length) * 100)
       : 0;
 
+  const sourceDocs = useMemo(() => {
+    if (!tree) return [] as NodeSource[];
+    const byDocId = new Map<string, NodeSource>();
+    for (const node of tree.nodes) {
+      for (const source of node.sources ?? []) {
+        if (!byDocId.has(source.doc_id)) byDocId.set(source.doc_id, source);
+      }
+    }
+    return [...byDocId.values()];
+  }, [tree]);
+
   // Node click: open quiz OR select for chain highlight
   function handleNodeClick(nodeId: string) {
     interaction.onClickNode(nodeId);
@@ -113,6 +159,17 @@ function TreePageContent() {
       setQuizNodeId(nodeId);
       setQuizResult(null);
       setQuizError(null);
+
+      // Find the raw node and trigger generation if needed
+      const rawNode = tree?.nodes.find((n) => n.id === nodeId);
+      if (rawNode) {
+        // Only trigger if lesson is missing
+        const alreadyHasContent =
+          rawNode.lesson?.summary && rawNode.lesson.summary.trim().length > 0;
+        if (!alreadyHasContent) {
+          generateLesson(rawNode);
+        }
+      }
     }
   }
 
@@ -120,6 +177,7 @@ function TreePageContent() {
     setQuizNodeId(null);
     setQuizResult(null);
     setQuizError(null);
+    setIsGenerating(false);
   };
 
   const submitQuiz = async (nodeId: string, answers: Record<string, number>) => {
@@ -145,44 +203,11 @@ function TreePageContent() {
     }
   };
 
-  const quizNode = quizNodeId ? tree?.nodes.find((n) => n.id === quizNodeId) : undefined;
-
-  // Generate quiz for a node that doesn't have one
-  const generateQuiz = async () => {
-    if (!quizNodeId) return;
-    setQuizGenerating(true);
-    setQuizError(null);
-    try {
-      const response = await fetch(
-        `${API_URL}/trees/${topicId}/nodes/${quizNodeId}/regenerate-quiz`,
-        { method: "POST" }
-      );
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.detail || `Failed to generate quiz: ${response.status}`);
-      }
-      const data = await response.json();
-      // Update tree with new quiz data
-      if (tree && data.quiz) {
-        setTree({
-          ...tree,
-          nodes: tree.nodes.map((n) =>
-            n.id === quizNodeId
-              ? {
-                  ...n,
-                  quiz: data.quiz,
-                  lesson: data.lesson || n.lesson,
-                }
-              : n
-          ),
-        });
-      }
-    } catch (err) {
-      setQuizError(err instanceof Error ? err.message : "Could not generate quiz.");
-    } finally {
-      setQuizGenerating(false);
-    }
-  };
+  // Always read the latest node data from `tree`
+  // We use useMemo to explicitly recalculate when `tree` changes.
+  const quizNode = useMemo(() => {
+    return quizNodeId ? tree?.nodes.find((n) => n.id === quizNodeId) : undefined;
+  }, [quizNodeId, tree]);
 
   // Handle search selection: scroll + highlight
   function handleSearchSelect(nodeId: string) {
@@ -327,80 +352,24 @@ function TreePageContent() {
             />
           </div>
 
-          {/* Navigation panel - switch between topics (collapsible) */}
-          {userTopics.length > 0 && (
-            <div className="absolute bottom-4 right-4 z-20 hidden md:block">
-              {/* Toggle button when collapsed */}
-              {!navPanelOpen && (
-                <button
-                  onClick={() => setNavPanelOpen(true)}
-                  className="glass-panel flex items-center gap-2 rounded-xl px-4 py-3 text-sm text-on-surface-variant transition-colors hover:text-on-surface"
+          {/* Source docs panel (bottom-right, collapsible) */}
+          {sourceDocs.length > 0 && (
+            <div className="glass-panel absolute bottom-4 right-4 z-20 hidden max-h-64 w-64 flex-col gap-3 overflow-y-auto rounded-xl p-4 text-stats-mono md:flex">
+              <h3 className="text-label-caps text-on-surface-variant">Source Docs</h3>
+              {sourceDocs.map((source) => (
+                <div
+                  key={source.doc_id}
+                  className="flex items-center gap-2 rounded border border-white/5 bg-surface-container-low p-2 transition-colors hover:border-secondary/40"
                 >
-                  <BookOpen size={16} />
-                  <span>My Paths ({userTopics.length})</span>
-                  <ChevronUp size={16} />
-                </button>
-              )}
-
-              {/* Expanded panel */}
-              {navPanelOpen && (
-                <div className="glass-panel max-h-80 w-72 flex-col gap-3 overflow-y-auto rounded-xl p-4 text-stats-mono">
-                  <button
-                    onClick={() => setNavPanelOpen(false)}
-                    className="mb-3 flex w-full items-center justify-between text-label-caps text-on-surface-variant transition-colors hover:text-on-surface"
-                  >
-                    <span className="flex items-center gap-2">
-                      <BookOpen size={16} />
-                      My Learning Paths
-                    </span>
-                    <ChevronDown size={16} />
-                  </button>
-                  <div className="flex flex-col gap-2">
-                    {userTopics.map((topic) => {
-                      const isActive = topic.id === topicId;
-                      return (
-                        <button
-                          key={topic.id}
-                          onClick={() => router.push(`/tree?topic=${topic.id}`)}
-                          className={`group flex items-center justify-between gap-2 rounded-lg border p-3 text-left transition-all ${
-                            isActive
-                              ? "border-secondary/50 bg-secondary/10"
-                              : "border-white/5 bg-surface-container-low hover:border-secondary/30 hover:bg-white/5"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3 overflow-hidden">
-                            <div
-                              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
-                                isActive ? "bg-secondary/20 text-secondary" : "bg-primary-container/20 text-primary"
-                              }`}
-                            >
-                              <Network size={16} />
-                            </div>
-                            <div className="overflow-hidden">
-                              <span
-                                className={`block truncate text-sm font-medium ${
-                                  isActive ? "text-secondary" : "text-on-surface"
-                                }`}
-                              >
-                                {topic.title ?? topic.id}
-                              </span>
-                              <span className="text-xs text-outline">
-                                {topic.document_count} doc{topic.document_count !== 1 ? "s" : ""}
-                              </span>
-                            </div>
-                          </div>
-                          <ChevronRight
-                            size={16}
-                            className={`shrink-0 transition-transform ${
-                              isActive ? "text-secondary" : "text-outline group-hover:translate-x-0.5"
-                            }`}
-                          />
-                        </button>
-                      );
-                    })}
+                  <FileText size={14} className="shrink-0 text-primary" />
+                  <div className="overflow-hidden">
+                    <span className="block truncate text-on-surface">{source.title ?? source.doc_id}</span>
+                    {source.page != null && (
+                      <span className="text-xs text-outline">Page {source.page}</span>
+                    )}
                   </div>
                 </div>
-              )}
+              ))}
             </div>
           )}
         </main>
@@ -409,15 +378,18 @@ function TreePageContent() {
       {quizNode && (
         <QuizModal
           nodeLabel={quizNode.title ?? quizNode.name ?? quizNode.id}
+          difficultyBadge={quizNode.difficulty_badge}
+          xpReward={quizNode.xp_reward}
+          estimatedMinutes={quizNode.estimated_minutes}
           quiz={quizNode.quiz}
           lesson={quizNode.lesson}
+          sources={quizNode.sources}
           submitting={quizSubmitting}
           result={quizResult}
           error={quizError}
+          isGenerating={isGenerating}
           onSubmit={(answers) => submitQuiz(quizNode.id, answers)}
           onClose={closeQuiz}
-          onGenerateQuiz={generateQuiz}
-          generating={quizGenerating}
         />
       )}
     </div>

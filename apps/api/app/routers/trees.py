@@ -9,11 +9,28 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.models.topic import Topic, Node, Edge, Document, ProcessingStatus
+from app.models.topic import Topic, Node, Edge, ProcessingStatus
 from app.services.quiz import grade_quiz
 from app.services.teach import FireworksClient, generate_lesson_package
 
 router = APIRouter()
+
+_fireworks = FireworksClient()
+
+# Gamification constants (mirrored from build_demo_dataset.py)
+_DIFFICULTY_BADGE = {
+    "foundational": "⭐ Foundational",
+    "intermediate": "⭐⭐ Intermediate",
+    "advanced": "⭐⭐⭐ Advanced",
+}
+_LEVEL_XP = {0: 50, 1: 100, 2: 150}
+_LEVEL_MINUTES = {0: 10, 1: 15, 2: 20}
+
+def _xp_reward(level: int) -> int:
+    return _LEVEL_XP.get(level, 150 + (level - 2) * 25)
+
+def _estimated_minutes(level: int) -> int:
+    return _LEVEL_MINUTES.get(level, 20 + (level - 2) * 5)
 
 
 def is_valid_uuid(value: str) -> bool:
@@ -40,6 +57,18 @@ def _load_sample_tree() -> dict:
     if not _SAMPLE_TREE_PATH.exists():
         raise HTTPException(status_code=404, detail="Demo tree data not available")
     return json.loads(_SAMPLE_TREE_PATH.read_text(encoding="utf-8"))
+
+
+def _save_sample_tree(data: dict) -> None:
+    """Persist updated tree data back to the JSON file (caching generated content)."""
+    try:
+        _SAMPLE_TREE_PATH.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except Exception as exc:
+        # Non-fatal — log and continue, frontend will still get the response
+        print(f"[Trees] Warning: could not save updated tree to {_SAMPLE_TREE_PATH}: {exc}")
 
 
 def _load_tree_from_db(topic_id: str, db: Session) -> Optional[dict]:
@@ -90,12 +119,22 @@ def _load_tree_from_db(topic_id: str, db: Session) -> Optional[dict]:
 
         # Determine status based on level (level 0 = unlocked, others = locked initially)
         status = "unlocked" if node.level == 0 else "locked"
+        
+        # Derive gamification fields
+        # Note: In a real system, difficulty might be stored in the DB, 
+        # but here we derive it based on level if not explicitly available.
+        # Fallback heuristic: level 0 = foundational, else intermediate
+        difficulty = "foundational" if node.level == 0 else "intermediate"
 
         node_data = {
             "id": node_str_id,
             "title": node.title,
             "concept_key": node.concept_key,
             "level": node.level,
+            "difficulty": difficulty,
+            "difficulty_badge": _DIFFICULTY_BADGE.get(difficulty, "⭐ Unknown"),
+            "xp_reward": _xp_reward(node.level),
+            "estimated_minutes": _estimated_minutes(node.level),
             "status": status,
             "prerequisites": prerequisites,
             "position": {
@@ -204,134 +243,225 @@ def submit_quiz(
     return {"node_id": node_id, **result}
 
 
-@router.post("/{topic_id}/nodes/{node_id}/regenerate-quiz")
-def regenerate_quiz(
+@router.post("/{topic_id}/nodes/{node_id}/generate-lesson")
+def generate_lesson(
     topic_id: str,
     node_id: str,
     db: Session = Depends(get_db),
 ):
-    """Regenerate quiz for an existing node using its source documents."""
-    if not is_valid_uuid(topic_id):
-        raise HTTPException(status_code=400, detail="Invalid topic_id")
+    """On-demand lesson + quiz generation for a single node (Step 7).
 
-    # Get the topic
-    topic = db.query(Topic).filter(Topic.id == topic_id).first()
-    if not topic:
-        raise HTTPException(status_code=404, detail=f"Topic {topic_id} not found")
+    Smart cache: if the node already has a non-empty lesson.summary AND quiz
+    questions, returns the cached content immediately without calling the LLM.
+    Otherwise, calls Fireworks AI to generate lesson + quiz, persists the
+    result back to disk (for JSON-backed topics) or DB (for real topics),
+    and returns the generated content.
+    """
+    # ── Demo / non-UUID path (JSON-backed) ────────────────────────────────
+    if topic_id == "demo" or not is_valid_uuid(topic_id):
+        tree = _load_sample_tree()
+        node = next((n for n in tree["nodes"] if n["id"] == node_id), None)
+        if node is None:
+            raise HTTPException(status_code=404, detail=f"No node {node_id!r} for topic_id={topic_id!r}")
 
-    # Get all nodes to find the one matching node_id (which is like "n1", "n2", etc.)
-    nodes = db.query(Node).filter(Node.topic_id == topic_id).all()
-
-    # Build node ID mapping
-    node_id_map = {}
-    db_node = None
-    for i, node in enumerate(nodes):
-        node_str_id = f"n{i+1}"
-        node_id_map[node_str_id] = node
-        if node_str_id == node_id:
-            db_node = node
-
-    if not db_node:
-        raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
-
-    # Get documents for this topic to build chunks
-    documents = db.query(Document).filter(Document.topic_id == topic_id).all()
-
-    # Build chunks from document extracted text or read from PDF
-    node_chunks = []
-    for doc in documents:
-        text = None
-        if doc.extracted_text:
-            text = doc.extracted_text[:4000]
-        elif doc.file_path and Path(doc.file_path).exists():
-            # Try to extract text from PDF
-            try:
-                import fitz  # PyMuPDF
-                pdf_doc = fitz.open(doc.file_path)
-                text_parts = []
-                for page in pdf_doc:
-                    text_parts.append(page.get_text())
-                text = "\n".join(text_parts)[:4000]
-                pdf_doc.close()
-            except Exception:
-                pass
-
-        if text:
-            node_chunks.append({
-                "chunk_id": f"{doc.id}_chunk_0",
-                "doc_id": doc.id,
-                "page": 1,
-                "text": text,
-            })
-
-    # Fallback: use node title and concept as context if no document text
-    if not node_chunks:
-        # Create a minimal context from the node itself
-        context_text = f"""
-Topic: {topic.title or 'Learning Topic'}
-Concept: {db_node.title}
-This is a learning module about {db_node.title}. Generate educational quiz questions
-to test understanding of this concept in the context of the broader topic.
-"""
-        node_chunks.append({
-            "chunk_id": f"{db_node.id}_context",
-            "doc_id": "generated",
-            "page": 1,
-            "text": context_text,
-        })
-
-    # Get prerequisites
-    edges = db.query(Edge).filter(Edge.topic_id == topic_id).all()
-    prereq_names = []
-    for edge in edges:
-        if str(edge.target_node_id) == str(db_node.id):
-            prereq_node = next((n for n in nodes if str(n.id) == str(edge.source_node_id)), None)
-            if prereq_node:
-                prereq_names.append(prereq_node.title)
-
-    # Generate lesson + quiz
-    try:
-        client = FireworksClient()
-        package = generate_lesson_package(
-            db_node.title,
-            node_chunks,
-            client,
-            prerequisite_names=prereq_names,
-            node_level=db_node.level,
-            max_attempts=2,
-        )
-
-        # Update node with new lesson and quiz
-        db_node.lesson_summary = package.get("lesson", "")
-        db_node.lesson_example = package.get("example", "")
-
-        questions = package.get("questions", [])
-        if questions:
-            db_node.quiz = {
-                "questions": [
-                    {
-                        "id": f"{db_node.id}_q{i}",
-                        "question": q.get("question", ""),
-                        "options": q.get("options", []),
-                        "answer_index": q.get("answer_index", 0),
-                        "difficulty": q.get("difficulty", "medium"),
-                    }
-                    for i, q in enumerate(questions)
-                ],
-                "pass_threshold": package.get("pass_threshold", 0.6),
+        # Cache check
+        lesson = node.get("lesson") or {}
+        quiz = node.get("quiz") or {}
+        questions = quiz.get("questions", [])
+        if lesson.get("summary", "").strip() and questions:
+            # Already generated — serve from cache
+            return {
+                "node_id": node_id,
+                "cached": True,
+                "lesson": lesson.get("summary", ""),
+                "example": lesson.get("real_world_example", ""),
+                "quiz": quiz,
             }
 
-        db.commit()
+        # Build chunk list from sources (we don't have raw text, so create
+        # a synthetic chunk from the node title + doc_id for the prompt)
+        sources = node.get("sources") or []
+        chunks = []
+        for src in sources:
+            chunks.append({
+                "chunk_id": f"{src.get('doc_id', 'doc')}:p{src.get('page', 0)}",
+                "doc_id": src.get("doc_id", "unknown"),
+                "page": src.get("page"),
+                "text": (
+                    f"[Source: {src.get('doc_id', 'unknown')}, page {src.get('page', '?')}] "
+                    f"Concept: {node.get('title', node_id)}. "
+                    f"This concept is at level {node.get('level', 0)} in the learning tree."
+                ),
+            })
 
-        return {
-            "success": True,
-            "node_id": node_id,
-            "lesson": {
-                "summary": db_node.lesson_summary,
-                "real_world_example": db_node.lesson_example,
-            },
-            "quiz": db_node.quiz,
+        # Fallback if no sources: use node title as minimal context
+        if not chunks:
+            chunks = [{
+                "chunk_id": f"synthetic_{node_id}",
+                "doc_id": "synthetic",
+                "page": None,
+                "text": (
+                    f"Concept: {node.get('title', node_id)}. "
+                    f"Level: {node.get('level', 0)}. "
+                    f"Difficulty: {node.get('difficulty', 'foundational')}."
+                ),
+            }]
+
+        # Prerequisite names for context (IMP-B3)
+        prereq_ids = node.get("prerequisites") or []
+        prereq_names = []
+        for pid in prereq_ids:
+            prereq_node = next((n for n in tree["nodes"] if n["id"] == pid), None)
+            if prereq_node:
+                prereq_names.append(prereq_node.get("title", pid))
+
+        # Generate via Fireworks
+        try:
+            package = generate_lesson_package(
+                node_name=node.get("title", node_id),
+                chunks=chunks,
+                fireworks=_fireworks,
+                prerequisite_names=prereq_names,
+                node_level=node.get("level", 0),
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"LLM generation failed: {exc}")
+
+        # Build quiz structure matching the JSON schema
+        all_questions = package.get("questions", [])
+        if not all_questions and package.get("quiz", {}).get("question"):
+            legacy_q = package["quiz"]
+            all_questions = [{"difficulty": "medium", **legacy_q}]
+
+        questions_with_ids = [
+            {
+                "id": f"q_{node_id}_{idx + 1}",
+                "type": "mcq",
+                "difficulty": q.get("difficulty", "medium"),
+                "question": q.get("question", ""),
+                "options": q.get("options", []),
+                "answer_index": q.get("answer_index", 0),
+            }
+            for idx, q in enumerate(all_questions)
+            if q.get("question")
+        ]
+
+        quiz_obj = {
+            "id": f"q_{node_id}",
+            "pass_threshold": package.get("pass_threshold", 0.6),
+            "questions": questions_with_ids,
         }
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate quiz: {str(e)}")
+        lesson_obj = {
+            "summary": package.get("lesson", ""),
+            "real_world_example": package.get("example", ""),
+        }
+
+        # Persist back to JSON file (cache)
+        node["lesson"] = lesson_obj
+        node["quiz"] = quiz_obj
+        _save_sample_tree(tree)
+
+        return {
+            "node_id": node_id,
+            "cached": False,
+            "lesson": lesson_obj["summary"],
+            "example": lesson_obj["real_world_example"],
+            "quiz": quiz_obj,
+        }
+
+    # ── Database-backed path ───────────────────────────────────────────────
+    tree_data = _load_tree_from_db(topic_id, db)
+    if not tree_data or tree_data.get("status") != "completed":
+        raise HTTPException(status_code=404, detail=f"Tree not available for topic_id={topic_id!r}")
+
+    node = next((n for n in tree_data.get("nodes", []) if n["id"] == node_id), None)
+    if node is None:
+        raise HTTPException(status_code=404, detail=f"No node {node_id!r} for topic_id={topic_id!r}")
+
+    # Cache check
+    lesson = node.get("lesson") or {}
+    quiz = node.get("quiz") or {}
+    questions = quiz.get("questions", [])
+    if lesson.get("summary", "").strip() and questions:
+        return {
+            "node_id": node_id,
+            "cached": True,
+            "lesson": lesson.get("summary", ""),
+            "example": lesson.get("real_world_example", ""),
+            "quiz": quiz,
+        }
+
+    # Build minimal chunk from node metadata
+    sources = node.get("sources") or []
+    chunks = []
+    for src in sources:
+        chunks.append({
+            "chunk_id": f"{src.get('doc_id', 'doc')}:p{src.get('page', 0)}",
+            "doc_id": src.get("doc_id", "unknown"),
+            "page": src.get("page"),
+            "text": (
+                f"[Source: {src.get('doc_id', 'unknown')}, page {src.get('page', '?')}] "
+                f"Concept: {node.get('title', node_id)}."
+            ),
+        })
+    if not chunks:
+        chunks = [{
+            "chunk_id": f"synthetic_{node_id}",
+            "doc_id": "synthetic",
+            "page": None,
+            "text": f"Concept: {node.get('title', node_id)}.",
+        }]
+
+    try:
+        package = generate_lesson_package(
+            node_name=node.get("title", node_id),
+            chunks=chunks,
+            fireworks=_fireworks,
+            node_level=node.get("level", 0),
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"LLM generation failed: {exc}")
+
+    all_questions = package.get("questions", [])
+    questions_with_ids = [
+        {
+            "id": f"q_{node_id}_{idx + 1}",
+            "type": "mcq",
+            "difficulty": q.get("difficulty", "medium"),
+            "question": q.get("question", ""),
+            "options": q.get("options", []),
+            "answer_index": q.get("answer_index", 0),
+        }
+        for idx, q in enumerate(all_questions)
+        if q.get("question")
+    ]
+    quiz_obj = {
+        "id": f"q_{node_id}",
+        "pass_threshold": package.get("pass_threshold", 0.6),
+        "questions": questions_with_ids,
+    }
+    lesson_obj = {
+        "summary": package.get("lesson", ""),
+        "real_world_example": package.get("example", ""),
+    }
+
+    # Persist to DB — find the actual Node record by matching title/concept_key
+    # node_id here is the string ID (e.g. "n1"), we need to look up the DB row
+    db_nodes = db.query(Node).filter(Node.topic_id == topic_id).all()
+    # Map string IDs back to DB nodes (same ordering as _load_tree_from_db)
+    for i, db_node in enumerate(db_nodes):
+        if f"n{i+1}" == node_id:
+            db_node.lesson_summary = lesson_obj["summary"]
+            db_node.lesson_example = lesson_obj["real_world_example"]
+            db_node.quiz = quiz_obj
+            db.commit()
+            break
+
+    return {
+        "node_id": node_id,
+        "cached": False,
+        "lesson": lesson_obj["summary"],
+        "example": lesson_obj["real_world_example"],
+        "quiz": quiz_obj,
+    }

@@ -57,5 +57,14 @@ export function toDisplayNodes(
     level: node.level,
     status: statuses.get(node.id) ?? "locked",
     quiz: node.quiz,
+    // Rich metadata for the modal
+    lesson: node.lesson,
+    sources: node.sources,
+    difficulty: node.difficulty,
+    difficulty_badge: node.difficulty_badge,
+    xp_reward: node.xp_reward,
+    estimated_minutes: node.estimated_minutes,
+    prerequisites: node.prerequisites,
+    concept_key: node.concept_key,
   }));
 }
