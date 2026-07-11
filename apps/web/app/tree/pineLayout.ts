@@ -63,10 +63,14 @@ export function computePineLayout(nodes: DisplayNode[]): PineLayout {
     // Y: level 0 is at the bottom, higher levels move upward
     const y = canvasHeight - BOTTOM_PADDING - level * LEVEL_SPACING_Y;
 
-    // X spread: wide at bottom, narrows toward top (pine shape)
-    // base spread ~1200px at level 0, shrinks to ~200px at maxLevel
+    // X spread: follows pine tree silhouette
+    // Wide at bottom (level 0), progressively narrower toward top
+    // Using a curve that matches the tree background shape
     const tRatio = maxLevel > 0 ? level / maxLevel : 0;
-    const spreadWidth = CANVAS_WIDTH * (0.82 - tRatio * 0.55); // 1180px -> 390px range
+    // Pine tree shape: starts at ~70% width, narrows to ~15% at top
+    // Using quadratic curve for natural pine silhouette
+    const widthRatio = 0.70 - tRatio * tRatio * 0.55; // 70% -> 15% (quadratic)
+    const spreadWidth = CANVAS_WIDTH * widthRatio;
     const n = sorted.length;
 
     sorted.forEach((node, idx) => {

@@ -1,10 +1,15 @@
 ﻿"use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Minus, Plus, RotateCcw } from "lucide-react";
 import type { DisplayNode, TreeEdge } from "./types";
 import type { PineLayout } from "./pineLayout";
 import { EdgeLayer } from "./EdgeLayer";
 import { PineTreeNode } from "./PineTreeNode";
+
+const MIN_ZOOM = 0.3;
+const MAX_ZOOM = 2;
+const ZOOM_STEP = 0.15;
 
 interface PineCanvasProps {
   nodes: DisplayNode[];
@@ -22,63 +27,120 @@ interface PineCanvasProps {
   scrollToRef: React.MutableRefObject<((nodeId: string) => void) | null>;
 }
 
-/** Decorative pine foliage tiers rendered as CSS clip-path polygons */
-function PineFoliage({ canvasHeight, numTiers }: { canvasHeight: number; numTiers: number }) {
-  // Pine polygon clip-path
-  const pineClip = "polygon(50% 0%, 57% 26%, 78% 30%, 66% 52%, 92% 58%, 79% 78%, 100% 100%, 0% 100%, 21% 78%, 8% 58%, 34% 52%, 22% 30%, 43% 26%)";
-  const tiers = [
-    { widthPx: 1180, heightPx: 300, opacity: 0.8, bottomOffset: 200 },
-    { widthPx: 920, heightPx: 270, opacity: 0.85, bottomOffset: 420 },
-    { widthPx: 700, heightPx: 250, opacity: 0.9, bottomOffset: 620 },
-    { widthPx: 500, heightPx: 230, opacity: 0.9, bottomOffset: 800 },
-    { widthPx: 310, heightPx: 200, opacity: 0.95, bottomOffset: 960 },
-  ].slice(0, Math.min(numTiers, 5));
+/**
+ * Simple unified Christmas tree - single smooth shape
+ * Uses SVG for smooth curves like the reference image
+ */
+function PineFoliage({
+  canvasHeight,
+  canvasWidth,
+  trunkTop,
+  treeTop,
+  nodesWidth
+}: {
+  canvasHeight: number;
+  canvasWidth: number;
+  trunkTop: number;   // Y position where trunk meets foliage (bottom of leaves)
+  treeTop: number;    // Y position of tree top
+  nodesWidth: number; // Width of level 0 nodes spread
+}) {
+  // Tree dimensions calculated from actual node positions
+  const treeHeight = trunkTop - treeTop + 60; // Add padding above top node
+  // Make tree wide enough to cover all nodes with generous padding on sides
+  const treeWidth = Math.max(nodesWidth + 350, canvasWidth * 0.92);
+  const centerX = canvasWidth / 2;
+  const treeBottom = canvasHeight - trunkTop - 30; // Lower the tree base to cover bottom nodes
+
+  // SVG path for smooth Christmas tree silhouette
+  // Starts at top point, curves down with wavy edges
+  const treePath = `
+    M 50 0
+    Q 52 3, 55 5
+    Q 65 12, 58 15
+    Q 72 22, 62 26
+    Q 80 35, 66 40
+    Q 88 52, 70 58
+    Q 95 72, 75 78
+    Q 100 90, 80 94
+    L 100 100
+    L 0 100
+    L 20 94
+    Q 0 90, 25 78
+    Q 5 72, 30 58
+    Q 12 52, 34 40
+    Q 20 35, 38 26
+    Q 28 22, 42 15
+    Q 35 12, 45 5
+    Q 48 3, 50 0
+    Z
+  `;
 
   return (
     <div className="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
-      {tiers.map((tier, i) => (
-        <div
-          key={i}
-          style={{
-            position: "absolute",
-            left: "50%",
-            bottom: tier.bottomOffset,
-            width: tier.widthPx,
-            height: tier.heightPx,
-            transform: "translateX(-50%)",
-            clipPath: pineClip,
-            background:
-              "repeating-linear-gradient(115deg,rgba(63,174,124,0.07) 0 3px,transparent 3px 11px)," +
-              "repeating-linear-gradient(65deg,rgba(111,227,165,0.06) 0 2px,transparent 2px 13px)," +
-              "linear-gradient(180deg,rgba(23,69,52,0.4),rgba(15,47,42,0.33) 60%,rgba(12,38,31,0.27))",
-            filter: "drop-shadow(0 18px 22px rgba(4,18,26,0.53))",
-            opacity: tier.opacity,
-          }}
-        />
-      ))}
+      {/* Main tree shape using SVG for smooth curves */}
+      <svg
+        style={{
+          position: "absolute",
+          left: centerX - treeWidth / 2,
+          bottom: treeBottom,
+          width: treeWidth,
+          height: treeHeight,
+        }}
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+      >
+        <defs>
+          {/* Main gradient */}
+          <linearGradient id="treeGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#2d7a50" />
+            <stop offset="30%" stopColor="#236b45" />
+            <stop offset="60%" stopColor="#1a5c3a" />
+            <stop offset="100%" stopColor="#144d30" />
+          </linearGradient>
+          {/* Highlight gradient */}
+          <radialGradient id="treeHighlight" cx="50%" cy="30%" r="50%">
+            <stop offset="0%" stopColor="rgba(100,200,140,0.3)" />
+            <stop offset="100%" stopColor="transparent" />
+          </radialGradient>
+          {/* Shadow filter */}
+          <filter id="treeShadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="10" stdDeviation="15" floodColor="rgba(0,30,20,0.4)" />
+          </filter>
+        </defs>
 
-      {/* Decorative leaf sprigs */}
-      {[
-        { left: -30, bottom: 100, rotate: 0, scaleX: 1 },
-        { left: "auto" as const, right: -40, bottom: 180, rotate: 0, scaleX: -1 },
-      ].map((pos, i) => (
-        <div
-          key={`sprig-${i}`}
-          style={{
-            position: "absolute",
-            ...(pos.left !== "auto" ? { left: pos.left } : { right: (pos as typeof pos & { right: number }).right }),
-            bottom: pos.bottom,
-            width: 200,
-            height: 200,
-            opacity: 0.45,
-            transform: `scaleX(${pos.scaleX})`,
-            background:
-              "repeating-linear-gradient(25deg,rgba(63,174,124,0.11) 0 2px,transparent 2px 10px)," +
-              "repeating-linear-gradient(-35deg,rgba(111,227,165,0.07) 0 2px,transparent 2px 12px)",
-            clipPath: "polygon(0 100%,45% 55%,30% 50%,60% 30%,50% 25%,100% 0,70% 45%,80% 50%,55% 68%,65% 74%,20% 100%)",
-          }}
+        {/* Tree body */}
+        <path
+          d={treePath}
+          fill="url(#treeGradient)"
+          filter="url(#treeShadow)"
         />
-      ))}
+
+        {/* Highlight overlay */}
+        <path
+          d={treePath}
+          fill="url(#treeHighlight)"
+        />
+      </svg>
+
+      {/* Star glow at top */}
+      <div
+        style={{
+          position: "absolute",
+          left: centerX - 50,
+          bottom: treeBottom + treeHeight - 20,
+          width: 100,
+          height: 100,
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(255,230,150,0.5) 0%, rgba(255,200,80,0.2) 40%, transparent 70%)",
+          animation: "star-glow 2.5s ease-in-out infinite",
+        }}
+      />
+      <style>{`
+        @keyframes star-glow {
+          0%, 100% { opacity: 0.7; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.1); }
+        }
+      `}</style>
     </div>
   );
 }
@@ -170,6 +232,37 @@ export function PineCanvas({
 }: PineCanvasProps) {
   const { positions, canvasWidth, canvasHeight, maxLevel, numTiers } = layout;
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const [zoom, setZoom] = useState(1);
+
+  // Zoom controls
+  const zoomIn = useCallback(() => {
+    setZoom((z) => Math.min(MAX_ZOOM, z + ZOOM_STEP));
+  }, []);
+
+  const zoomOut = useCallback(() => {
+    setZoom((z) => Math.max(MIN_ZOOM, z - ZOOM_STEP));
+  }, []);
+
+  const resetZoom = useCallback(() => {
+    setZoom(1);
+  }, []);
+
+  // Handle mouse wheel zoom
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+        setZoom((z) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z + delta)));
+      }
+    };
+
+    wrapper.addEventListener("wheel", handleWheel, { passive: false });
+    return () => wrapper.removeEventListener("wheel", handleWheel);
+  }, []);
 
   // Find the node at the highest level (treetop)
   const topNode = nodes.reduce<DisplayNode | null>((acc, n) => {
@@ -178,6 +271,26 @@ export function PineCanvas({
   }, null);
 
   const topPos = topNode ? positions.get(topNode.id) : null;
+
+  // Find bottom and top Y positions for tree background alignment
+  // Level 0 nodes are at the bottom, highest level at top
+  const bottomNode = nodes.reduce<DisplayNode | null>((acc, n) => {
+    if (!acc || n.level < acc.level) return n;
+    return acc;
+  }, null);
+  const bottomPos = bottomNode ? positions.get(bottomNode.id) : null;
+
+  // trunkTop = Y position of level 0 nodes (bottom of tree foliage)
+  // treeTop = Y position of highest level node (top of tree)
+  const trunkTopY = bottomPos?.y ?? (canvasHeight - 220);
+  const treeTopY = topPos?.y ?? 80;
+
+  // Calculate width of level 0 nodes (widest spread)
+  const level0Nodes = nodes.filter(n => n.level === 0);
+  const level0Positions = level0Nodes.map(n => positions.get(n.id)).filter(Boolean) as { x: number; y: number }[];
+  const minX = level0Positions.length > 0 ? Math.min(...level0Positions.map(p => p.x)) : canvasWidth * 0.15;
+  const maxX = level0Positions.length > 0 ? Math.max(...level0Positions.map(p => p.x)) : canvasWidth * 0.85;
+  const nodesWidth = maxX - minX;
 
   // Expose scrollToNode via ref
   const scrollToNode = useCallback(
@@ -203,12 +316,52 @@ export function PineCanvas({
       onClick={onClickCanvas}
       style={{ background: "transparent" }}
     >
+      {/* Zoom controls */}
+      <div className="absolute right-4 top-4 z-30 flex flex-col gap-1">
+        <button
+          onClick={(e) => { e.stopPropagation(); zoomIn(); }}
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-surface-container/80 text-on-surface-variant backdrop-blur-md transition-colors hover:bg-surface-container-high hover:text-on-surface"
+          title="Zoom in (Ctrl + Scroll)"
+        >
+          <Plus size={18} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); zoomOut(); }}
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-surface-container/80 text-on-surface-variant backdrop-blur-md transition-colors hover:bg-surface-container-high hover:text-on-surface"
+          title="Zoom out (Ctrl + Scroll)"
+        >
+          <Minus size={18} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); resetZoom(); }}
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-surface-container/80 text-on-surface-variant backdrop-blur-md transition-colors hover:bg-surface-container-high hover:text-on-surface"
+          title="Reset zoom"
+        >
+          <RotateCcw size={16} />
+        </button>
+        <div className="mt-1 rounded-md bg-surface-container/80 px-2 py-1 text-center text-xs text-on-surface-variant backdrop-blur-md">
+          {Math.round(zoom * 100)}%
+        </div>
+      </div>
+
       <div
-        className="relative"
-        style={{ width: canvasWidth, height: canvasHeight, minWidth: canvasWidth }}
+        className="relative origin-top-left transition-transform duration-150"
+        style={{
+          width: canvasWidth,
+          height: canvasHeight,
+          minWidth: canvasWidth,
+          transform: `scale(${zoom})`,
+          transformOrigin: "center top",
+        }}
       >
-        {/* Pine foliage decorative background */}
-        <PineFoliage canvasHeight={canvasHeight} numTiers={numTiers} />
+        {/* Pine foliage decorative background - single unified tree */}
+        <PineFoliage
+          canvasHeight={canvasHeight}
+          canvasWidth={canvasWidth}
+          trunkTop={trunkTopY + 30}
+          treeTop={treeTopY - 40}
+          nodesWidth={nodesWidth}
+        />
 
         {/* Treetop glow */}
         {topPos && <TreetopStar x={topPos.x} y={topPos.y} />}

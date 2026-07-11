@@ -72,6 +72,7 @@ from worker.prerequisites import FireworksClient as PrereqFireworksClient, build
 
 from app.services.graph import validate_graph  # noqa: E402
 from app.services.levels import assign_levels  # noqa: E402
+from app.services.teach import FireworksClient as TeachClient, generate_lesson_package  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Config
@@ -323,7 +324,7 @@ async def process_documents(
     _emit("leveling", f"Tree depth: {max_level + 1} level(s), {len(leveled_nodes)} node(s).")
 
     # ------------------------------------------------------------------
-    # Build output (Step 7 skipped — quiz/lesson generated per-node later)
+    # Build output + Step 7: Generate quiz/lesson for each node
     # ------------------------------------------------------------------
     _emit("building", "Assembling tree output…")
 
@@ -335,15 +336,24 @@ async def process_documents(
     for edge in validated["edges"]:
         prerequisites_by_id.setdefault(edge["to"], []).append(edge["from"])
 
+    # Name lookup for prerequisite display
+    name_by_id = {n["id"]: n["name"] for n in leveled_nodes}
+
+    # Initialize teach client for quiz generation
+    teach_client = TeachClient()
+
     nodes_out: list[dict] = []
-    for leveled in leveled_nodes:
+    for idx, leveled in enumerate(leveled_nodes):
         node_id = leveled["id"]
         node_level = leveled["level"]
+        node_name = leveled["name"]
         prereq_ids = prerequisites_by_id.get(node_id, [])
+        prereq_names = [name_by_id.get(pid, "") for pid in prereq_ids if name_by_id.get(pid)]
 
         # Gather unique doc_id/page source references
         seen_sources: set[str] = set()
         sources_out: list[dict] = []
+        node_chunks: list[dict] = []
         for src in leveled.get("sources", []):
             chunk_id = src.get("chunk_id", "")
             chunk = chunks_by_id.get(chunk_id)
@@ -352,16 +362,61 @@ async def process_documents(
                 if key not in seen_sources:
                     seen_sources.add(key)
                     sources_out.append({"doc_id": chunk.doc_id, "page": chunk.page})
+                # Collect chunk data for quiz generation
+                node_chunks.append({
+                    "chunk_id": chunk.chunk_id,
+                    "doc_id": chunk.doc_id,
+                    "page": chunk.page,
+                    "text": chunk.text,
+                })
 
         # concept dict for difficulty
         concept_for_node = next((c for c in concept_dicts if c["id"] == node_id), {})
         node_difficulty = concept_for_node.get("difficulty", "intermediate")
 
+        # Step 7: Generate lesson + quiz for this node
+        lesson_data = {"summary": "", "real_world_example": ""}
+        quiz_data = None
+
+        if node_chunks:
+            _emit("building", f"Generating quiz for {node_name} ({idx + 1}/{len(leveled_nodes)})…")
+            try:
+                package = generate_lesson_package(
+                    node_name,
+                    node_chunks,
+                    teach_client,
+                    prerequisite_names=prereq_names,
+                    node_level=node_level,
+                    max_attempts=2,
+                )
+                lesson_data = {
+                    "summary": package.get("lesson", ""),
+                    "real_world_example": package.get("example", ""),
+                }
+                # Build quiz structure with questions
+                questions = package.get("questions", [])
+                if questions:
+                    quiz_data = {
+                        "questions": [
+                            {
+                                "id": f"{node_id}_q{i}",
+                                "question": q.get("question", ""),
+                                "options": q.get("options", []),
+                                "answer_index": q.get("answer_index", 0),
+                                "difficulty": q.get("difficulty", "medium"),
+                            }
+                            for i, q in enumerate(questions)
+                        ],
+                        "pass_threshold": package.get("pass_threshold", 0.6),
+                    }
+            except Exception as e:
+                print(f"[Pipeline] Warning: Failed to generate quiz for {node_name}: {e}")
+
         nodes_out.append(
             {
                 "id": node_id,
-                "title": leveled["name"],
-                "concept_key": _slugify(leveled["name"]),
+                "title": node_name,
+                "concept_key": _slugify(node_name),
                 "level": node_level,
                 "difficulty": node_difficulty,
                 "difficulty_badge": _DIFFICULTY_BADGE.get(node_difficulty, "⭐ Unknown"),
@@ -369,11 +424,8 @@ async def process_documents(
                 "estimated_minutes": _estimated_minutes(node_level),
                 "status": leveled["status"],
                 "prerequisites": prereq_ids,
-                "lesson": {
-                    "summary": "",
-                    "real_world_example": "",
-                },
-                "quiz": None,  # generated on-demand later
+                "lesson": lesson_data,
+                "quiz": quiz_data,
                 "sources": sources_out,
                 "position": {"x": 0, "y": 0},  # overwritten below
             }

@@ -312,8 +312,18 @@ export function DropZone() {
         router.push(`/tree?topic=${data.topic_id}`);
       }
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Upload failed. Please try again.";
+
+      if (errorMessage.toLowerCase().includes("timeout") || errorMessage.toLowerCase().includes("timed out")) {
+        setStatus("idle");
+        setCurrentStep(null);
+        setError("Processing is taking longer than expected. Your documents are being processed in the background. Check your Profile page for status updates.");
+        setFiles([]);
+        return;
+      }
+
       setStatus("failed");
-      setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
+      setError(errorMessage);
     }
   };
 
@@ -397,11 +407,23 @@ export function DropZone() {
         />
       </div>
 
-      {/* ── Error message ── */}
+      {/* ── Error/Info message ── */}
       {error && (
-        <div className="mt-4 flex items-center gap-2 rounded-lg bg-error/10 p-3 text-sm text-error">
-          <AlertCircle size={16} />
-          {error}
+        <div className={`mt-4 flex items-start gap-2 rounded-lg p-3 text-sm ${
+          error.includes("background") ? "bg-secondary/10 text-secondary" : "bg-error/10 text-error"
+        }`}>
+          <AlertCircle size={16} className="mt-0.5 shrink-0" />
+          <div className="flex-1">
+            {error}
+            {error.includes("Profile") && (
+              <button
+                onClick={() => router.push("/profile")}
+                className="ml-2 font-medium underline hover:no-underline"
+              >
+                Go to Profile →
+              </button>
+            )}
+          </div>
           {status === "failed" && (
             <button
               onClick={() => {
@@ -409,9 +431,17 @@ export function DropZone() {
                 setError("");
                 setCurrentStep(null);
               }}
-              className="ml-auto underline hover:no-underline"
+              className="shrink-0 underline hover:no-underline"
             >
               Try again
+            </button>
+          )}
+          {status === "idle" && error.includes("background") && (
+            <button
+              onClick={() => setError("")}
+              className="shrink-0 text-secondary/60 hover:text-secondary"
+            >
+              <X size={16} />
             </button>
           )}
         </div>

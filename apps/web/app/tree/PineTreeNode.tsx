@@ -30,6 +30,13 @@ const TIER_DOT_COLORS: Record<PineTier, string> = {
   advanced: "bg-primary shadow-[0_0_14px_rgba(192,193,255,0.9)]",
 };
 
+// Completed nodes get a brighter, more prominent glow
+const TIER_COMPLETED_COLORS: Record<PineTier, string> = {
+  foundational: "bg-secondary shadow-[0_0_20px_rgba(76,215,246,1),0_0_40px_rgba(76,215,246,0.5)]",
+  intermediate: "bg-tertiary shadow-[0_0_20px_rgba(78,222,163,1),0_0_40px_rgba(78,222,163,0.5)]",
+  advanced: "bg-primary shadow-[0_0_20px_rgba(192,193,255,1),0_0_40px_rgba(192,193,255,0.5)]",
+};
+
 const TIER_TEXT_COLORS: Record<PineTier, string> = {
   foundational: "text-secondary",
   intermediate: "text-tertiary",
@@ -68,12 +75,15 @@ export function PineTreeNode({
   const tier = getTier(node.level, maxLevel);
   const Icon = STATUS_ICONS[node.status];
   const isLocked = node.status === "locked";
+  const isCompleted = node.status === "completed";
 
   const dimmed = isFocusing && !isLit && !isSelf;
   const highlighted = isSelf;
 
   const dotClass = isLocked
     ? "bg-surface-container-high border border-dashed border-white/30 shadow-none"
+    : isCompleted
+    ? `${TIER_COMPLETED_COLORS[tier]}`
     : `${TIER_DOT_COLORS[tier]}`;
 
   const labelClass = isLocked
@@ -110,7 +120,7 @@ export function PineTreeNode({
       {/* Dot */}
       <span className="relative flex items-center justify-center">
         <span
-          className={`${isTopNode ? "w-8 h-8" : "w-5 h-5"} ${isTopNode ? "rounded-sm" : "rounded-full"} ${dotClass} flex items-center justify-center transition-all duration-200 ${
+          className={`${isTopNode ? "w-8 h-8" : isCompleted ? "w-6 h-6" : "w-5 h-5"} ${isTopNode ? "rounded-sm" : "rounded-full"} ${dotClass} flex items-center justify-center transition-all duration-200 ${
             highlighted ? "scale-125" : ""
           }`}
           style={
@@ -122,17 +132,24 @@ export function PineTreeNode({
           {isLocked && (
             <Lock size={9} className="text-outline/80" strokeWidth={2.5} />
           )}
+          {isCompleted && !isTopNode && (
+            <CheckCircle2 size={12} className="text-surface" strokeWidth={2.5} />
+          )}
           {!isLocked && isTopNode && (
             <Star size={12} className="text-on-primary" strokeWidth={2} />
           )}
         </span>
-        {/* Pulsing ring for unlocked non-locked nodes */}
-        {!isLocked && (
+        {/* Pulsing ring for unlocked (not completed) nodes */}
+        {node.status === "unlocked" && (
           <span
-            className={`absolute inset-0 rounded-full border ${TIER_RING_COLORS[tier]} animate-ping opacity-0 ${
-              node.status === "unlocked" ? "opacity-50" : ""
-            }`}
+            className={`absolute inset-0 rounded-full border ${TIER_RING_COLORS[tier]} animate-ping opacity-50`}
             style={{ animationDuration: "2.4s" }}
+          />
+        )}
+        {/* Solid ring for completed nodes */}
+        {isCompleted && (
+          <span
+            className={`absolute -inset-1 rounded-full border-2 ${TIER_RING_COLORS[tier]} opacity-60`}
           />
         )}
         {/* Self glow overlay */}

@@ -9,8 +9,9 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.models.topic import Topic, Node, Edge, ProcessingStatus
+from app.models.topic import Topic, Node, Edge, Document, ProcessingStatus
 from app.services.quiz import grade_quiz
+from app.services.teach import FireworksClient, generate_lesson_package
 
 router = APIRouter()
 
@@ -201,3 +202,136 @@ def submit_quiz(
 
     result = grade_quiz(quiz, submission.answers)
     return {"node_id": node_id, **result}
+
+
+@router.post("/{topic_id}/nodes/{node_id}/regenerate-quiz")
+def regenerate_quiz(
+    topic_id: str,
+    node_id: str,
+    db: Session = Depends(get_db),
+):
+    """Regenerate quiz for an existing node using its source documents."""
+    if not is_valid_uuid(topic_id):
+        raise HTTPException(status_code=400, detail="Invalid topic_id")
+
+    # Get the topic
+    topic = db.query(Topic).filter(Topic.id == topic_id).first()
+    if not topic:
+        raise HTTPException(status_code=404, detail=f"Topic {topic_id} not found")
+
+    # Get all nodes to find the one matching node_id (which is like "n1", "n2", etc.)
+    nodes = db.query(Node).filter(Node.topic_id == topic_id).all()
+
+    # Build node ID mapping
+    node_id_map = {}
+    db_node = None
+    for i, node in enumerate(nodes):
+        node_str_id = f"n{i+1}"
+        node_id_map[node_str_id] = node
+        if node_str_id == node_id:
+            db_node = node
+
+    if not db_node:
+        raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
+
+    # Get documents for this topic to build chunks
+    documents = db.query(Document).filter(Document.topic_id == topic_id).all()
+
+    # Build chunks from document extracted text or read from PDF
+    node_chunks = []
+    for doc in documents:
+        text = None
+        if doc.extracted_text:
+            text = doc.extracted_text[:4000]
+        elif doc.file_path and Path(doc.file_path).exists():
+            # Try to extract text from PDF
+            try:
+                import fitz  # PyMuPDF
+                pdf_doc = fitz.open(doc.file_path)
+                text_parts = []
+                for page in pdf_doc:
+                    text_parts.append(page.get_text())
+                text = "\n".join(text_parts)[:4000]
+                pdf_doc.close()
+            except Exception:
+                pass
+
+        if text:
+            node_chunks.append({
+                "chunk_id": f"{doc.id}_chunk_0",
+                "doc_id": doc.id,
+                "page": 1,
+                "text": text,
+            })
+
+    # Fallback: use node title and concept as context if no document text
+    if not node_chunks:
+        # Create a minimal context from the node itself
+        context_text = f"""
+Topic: {topic.title or 'Learning Topic'}
+Concept: {db_node.title}
+This is a learning module about {db_node.title}. Generate educational quiz questions
+to test understanding of this concept in the context of the broader topic.
+"""
+        node_chunks.append({
+            "chunk_id": f"{db_node.id}_context",
+            "doc_id": "generated",
+            "page": 1,
+            "text": context_text,
+        })
+
+    # Get prerequisites
+    edges = db.query(Edge).filter(Edge.topic_id == topic_id).all()
+    prereq_names = []
+    for edge in edges:
+        if str(edge.target_node_id) == str(db_node.id):
+            prereq_node = next((n for n in nodes if str(n.id) == str(edge.source_node_id)), None)
+            if prereq_node:
+                prereq_names.append(prereq_node.title)
+
+    # Generate lesson + quiz
+    try:
+        client = FireworksClient()
+        package = generate_lesson_package(
+            db_node.title,
+            node_chunks,
+            client,
+            prerequisite_names=prereq_names,
+            node_level=db_node.level,
+            max_attempts=2,
+        )
+
+        # Update node with new lesson and quiz
+        db_node.lesson_summary = package.get("lesson", "")
+        db_node.lesson_example = package.get("example", "")
+
+        questions = package.get("questions", [])
+        if questions:
+            db_node.quiz = {
+                "questions": [
+                    {
+                        "id": f"{db_node.id}_q{i}",
+                        "question": q.get("question", ""),
+                        "options": q.get("options", []),
+                        "answer_index": q.get("answer_index", 0),
+                        "difficulty": q.get("difficulty", "medium"),
+                    }
+                    for i, q in enumerate(questions)
+                ],
+                "pass_threshold": package.get("pass_threshold", 0.6),
+            }
+
+        db.commit()
+
+        return {
+            "success": True,
+            "node_id": node_id,
+            "lesson": {
+                "summary": db_node.lesson_summary,
+                "real_world_example": db_node.lesson_example,
+            },
+            "quiz": db_node.quiz,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate quiz: {str(e)}")

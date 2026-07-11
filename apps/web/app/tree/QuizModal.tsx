@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, CheckCircle2, Lightbulb, Lock, Quote, RotateCcw, Rocket, Sigma, X } from "lucide-react";
+import { ArrowRight, CheckCircle2, Lightbulb, Loader2, Lock, Quote, RotateCcw, Rocket, Sigma, Sparkles, X } from "lucide-react";
 
 import type { NodeLesson, Quiz } from "./types";
 
@@ -21,6 +21,8 @@ interface QuizModalProps {
   error: string | null;
   onSubmit: (answers: Record<string, number>) => void;
   onClose: () => void;
+  onGenerateQuiz?: () => Promise<void>;
+  generating?: boolean;
 }
 
 /** Node detail panel — lesson + real-world example (feat-007) and the
@@ -30,7 +32,7 @@ interface QuizModalProps {
  * passing result the caller (page.tsx) marks the node completed in
  * progressStore, which re-derives unlock status for its children via
  * feat-006's unlock.ts. */
-export function QuizModal({ nodeLabel, quiz, lesson, submitting, result, error, onSubmit, onClose }: QuizModalProps) {
+export function QuizModal({ nodeLabel, quiz, lesson, submitting, result, error, onSubmit, onClose, onGenerateQuiz, generating }: QuizModalProps) {
   const [answers, setAnswers] = useState<Record<string, number>>({});
 
   const allAnswered = quiz?.questions ? quiz.questions.every((question) => answers[question.id] !== undefined) : false;
@@ -108,7 +110,27 @@ export function QuizModal({ nodeLabel, quiz, lesson, submitting, result, error, 
             
             {!quiz?.questions || quiz.questions.length === 0 ? (
               <div className="rounded-lg border border-white/5 bg-surface-container-low p-5 text-center">
-                <p className="text-on-surface-variant">No quiz available for this node yet.</p>
+                <p className="mb-4 text-on-surface-variant">No quiz available for this node yet.</p>
+                {onGenerateQuiz && (
+                  <button
+                    type="button"
+                    onClick={onGenerateQuiz}
+                    disabled={generating}
+                    className="inline-flex items-center gap-2 rounded-lg bg-secondary px-4 py-2 font-medium text-on-secondary transition-all hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {generating ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin" />
+                        Generating Quiz...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={18} />
+                        Generate Quiz
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             ) : (
               <div className="space-y-6">
