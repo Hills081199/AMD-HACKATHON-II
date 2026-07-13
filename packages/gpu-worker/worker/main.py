@@ -1,19 +1,65 @@
 """AMD GPU / ROCm worker.
 
-Responsibilities (see docs/architecture.md — the "Understand" and "Structure"
-stages):
-  1. Chunk + embed incoming documents (sentence-transformers on ROCm-enabled torch).
-  2. Extract & cluster concepts from the embedded chunks.
-  3. Build the candidate concept-dependency graph (edges refined/validated by
-     the self-checking agent that calls out to Fireworks — see apps/api).
-
-This file is a placeholder entrypoint; wire it up to an actual FastAPI or
-task-queue worker depending on how apps/api dispatches jobs.
+Responsibilities (see docs/concept-graph-pipeline.md for the full 6-step
+breakdown, and docs/architecture.md's "Data contract" section for why steps
+1-4 all live here rather than in apps/api):
+  1. Chunk incoming documents (POST /ingest).
+  2. Embed chunks (sentence-transformers on ROCm-enabled torch) and extract
+     concepts via Gemma served locally, then cluster/dedupe (POST /embed).
+  3. Infer prerequisite edges between concepts via Fireworks, pre-filtered by
+     embedding similarity to avoid an O(n^2) call scan (POST /build-graph).
+     apps/api picks up from here: self-checking validation (step 5) onward.
 """
 
-from fastapi import FastAPI
+import os
+
+from fastapi import Depends, FastAPI, File, UploadFile
+
+from worker.concepts import (
+    FireworksConceptExtractor,
+    FireworksEmbedder,
+    GemmaConceptExtractor,
+    OpenAIConceptExtractor,
+    OpenAIEmbedder,
+    SentenceTransformerEmbedder,
+    cluster_concepts,
+    extract_raw_concepts,
+)
+from worker.ingest import Chunk, chunk_document
+from worker.prerequisites import FireworksClient, build_candidate_edges
 
 app = FastAPI(title="Atlas GPU Worker")
+
+# LLM_PROVIDER selects the backend for concept extraction and embeddings:
+#   "fireworks" — Fireworks AI hosted API (default hosted path, production-ready)
+#   "openai"    — OpenAI GPT-4o mini (prototyping-only, see docs/hackathon-scope.md §5)
+#   anything else — local Gemma via vLLM-ROCm/Ollama + local SentenceTransformer
+_LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "").lower()
+_USE_OPENAI = _LLM_PROVIDER == "openai"
+_USE_FIREWORKS = _LLM_PROVIDER == "fireworks"
+
+if _USE_OPENAI:
+    _embedder = OpenAIEmbedder()
+    _gemma = OpenAIConceptExtractor()
+elif _USE_FIREWORKS:
+    _embedder = FireworksEmbedder()
+    _gemma = FireworksConceptExtractor()
+else:
+    _embedder = SentenceTransformerEmbedder()
+    _gemma = GemmaConceptExtractor(base_url=os.environ.get("GEMMA_BASE_URL", "http://localhost:11434"))
+_fireworks = FireworksClient()
+
+
+def get_embedder():
+    return _embedder
+
+
+def get_gemma_extractor():
+    return _gemma
+
+
+def get_fireworks_client() -> FireworksClient:
+    return _fireworks
 
 
 @app.get("/health")
@@ -21,11 +67,31 @@ def health():
     return {"status": "ok", "device": "TODO: report torch.cuda/rocm device info"}
 
 
+@app.post("/ingest")
+async def ingest(files: list[UploadFile] = File(...)):
+    """Pipeline step 1 — chunk & embed (chunking half). See
+    docs/concept-graph-pipeline.md step 1."""
+    chunks = []
+    for upload in files:
+        content = await upload.read()
+        chunks.extend(chunk_document(upload.filename, content))
+    return {"chunks": [chunk.to_dict() for chunk in chunks]}
+
+
 @app.post("/embed")
-def embed(payload: dict):
-    raise NotImplementedError("TODO: chunk + embed documents on GPU")
+def embed(payload: dict, gemma=Depends(get_gemma_extractor), embedder=Depends(get_embedder)):
+    """Pipeline steps 2-3 — concept extraction (local Gemma) + clustering. See
+    docs/concept-graph-pipeline.md steps 2-3. Takes /ingest's chunks[] output."""
+    chunks = [Chunk(**chunk) for chunk in payload["chunks"]]
+    raw_concepts = extract_raw_concepts(chunks, gemma)
+    canonical_concepts = cluster_concepts(raw_concepts, embedder)
+    return {"concepts": [concept.to_dict() for concept in canonical_concepts]}
 
 
 @app.post("/build-graph")
-def build_graph(payload: dict):
-    raise NotImplementedError("TODO: concept extraction, clustering, candidate graph edges")
+def build_graph(payload: dict, fireworks=Depends(get_fireworks_client)):
+    """Pipeline step 4 — prerequisite inference (Fireworks), pre-filtered by
+    embedding similarity. See docs/concept-graph-pipeline.md step 4. Takes
+    /embed's concepts[] output (each with an id and embedding)."""
+    edges = build_candidate_edges(payload["concepts"], fireworks)
+    return {"edges": edges}
