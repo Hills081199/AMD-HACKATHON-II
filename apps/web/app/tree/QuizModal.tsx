@@ -140,13 +140,13 @@ export function QuizModal({
                 </div>
               </div>
               <div className="text-center">
-                <p className="font-semibold text-on-surface">Đang tạo bài học với AI…</p>
+                <p className="font-semibold text-on-surface">Generating lesson with AI…</p>
                 <p className="mt-1 text-sm text-on-surface-variant">
-                  Fireworks AI đang phân tích tài liệu và sinh lesson + quiz cho node này.
+                  Fireworks AI is analyzing the document and generating lesson + quiz for this node.
                 </p>
                 <div className="mt-3 flex items-center justify-center gap-2 text-xs text-outline">
                   <Loader2 size={13} className="animate-spin" />
-                  Có thể mất 10–30 giây
+                  This may take 10–30 seconds
                 </div>
               </div>
             </div>
@@ -184,7 +184,7 @@ export function QuizModal({
           {!isGenerating && !hasLesson && (
             <div className="rounded-lg border border-dashed border-white/10 bg-surface-container-low p-6 text-center">
               <BookOpen size={28} className="mx-auto mb-3 text-outline" />
-              <p className="text-sm text-on-surface-variant">Chưa có bài học. Hệ thống sẽ tự sinh nội dung khi bạn mở node này.</p>
+              <p className="text-sm text-on-surface-variant">No lesson available yet. Content will be generated automatically when you open this node.</p>
             </div>
           )}
 
@@ -238,27 +238,57 @@ export function QuizModal({
                     <div className="space-y-2">
                       {question.options.map((option, optionIndex) => {
                         const selected = answers[question.id] === optionIndex;
+                        // Use answer_index directly from question data (more reliable than ID-based mapping)
+                        const isCorrectOption = question.answer_index === optionIndex;
+                        const showResult = result !== null;
+                        const userWasWrong = selected && !isCorrectOption;
+
+                        // Determine styling based on result state
+                        let borderClass = "border-white/5";
+                        let bgClass = "bg-background/50 hover:bg-white/5";
+                        let textClass = "text-on-surface-variant group-hover:text-on-surface";
+
+                        if (showResult) {
+                          if (isCorrectOption) {
+                            // Always highlight correct answer in green
+                            borderClass = "border-tertiary/60";
+                            bgClass = "bg-tertiary/15";
+                            textClass = "font-medium text-tertiary";
+                          } else if (userWasWrong) {
+                            // User selected wrong answer - show in red
+                            borderClass = "border-error/50";
+                            bgClass = "bg-error/10";
+                            textClass = "font-medium text-error line-through";
+                          }
+                        } else if (selected) {
+                          // Before submit: just highlight selection
+                          borderClass = "border-secondary/50";
+                          bgClass = "bg-secondary/10";
+                          textClass = "font-medium text-on-surface";
+                        }
+
                         return (
                           <label
                             key={optionIndex}
-                            className={`group relative flex cursor-pointer items-start gap-3 overflow-hidden rounded-md border p-3 transition-colors ${
-                              selected
-                                ? "border-secondary/50 bg-secondary/10"
-                                : "border-white/5 bg-background/50 hover:bg-white/5"
-                            }`}
+                            className={`group relative flex items-start gap-3 overflow-hidden rounded-md border p-3 transition-colors ${borderClass} ${bgClass} ${showResult ? "cursor-default" : "cursor-pointer"}`}
                           >
                             <input
                               type="radio"
                               name={question.id}
                               checked={selected}
-                              onChange={() => setAnswers((prev) => ({ ...prev, [question.id]: optionIndex }))}
+                              onChange={() => !showResult && setAnswers((prev) => ({ ...prev, [question.id]: optionIndex }))}
+                              disabled={showResult}
                               className="mt-1 border-outline-variant bg-surface text-secondary focus:ring-secondary focus:ring-offset-background"
                             />
-                            <span
-                              className={`relative z-10 text-sm ${selected ? "font-medium text-on-surface" : "text-on-surface-variant group-hover:text-on-surface"}`}
-                            >
+                            <span className={`relative z-10 text-sm ${textClass}`}>
                               {option}
                             </span>
+                            {showResult && isCorrectOption && (
+                              <CheckCircle2 size={16} className="ml-auto shrink-0 text-tertiary" />
+                            )}
+                            {showResult && userWasWrong && (
+                              <X size={16} className="ml-auto shrink-0 text-error" />
+                            )}
                           </label>
                         );
                       })}
@@ -310,7 +340,7 @@ export function QuizModal({
             {isGenerating ? (
               <>
                 <Loader2 size={18} className="animate-spin text-primary" />
-                <span>Đang sinh nội dung…</span>
+                <span>Generating content…</span>
               </>
             ) : result?.passed ? (
               <>

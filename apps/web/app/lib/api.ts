@@ -71,6 +71,37 @@ export const userApi = {
   getUsage: () => apiRequest<import("./types").UsageStats>("/api/user/usage"),
 
   getTopics: () => apiRequest<import("./types").TopicSummary[]>("/api/user/topics"),
+
+  renameTopic: (topicId: string, title: string) =>
+    apiRequest<import("./types").TopicSummary>(`/api/user/topics/${topicId}`, {
+      method: "PUT",
+      body: JSON.stringify({ title }),
+    }),
+
+  deleteTopic: (topicId: string) =>
+    fetch(`${API_URL}/api/user/topics/${topicId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${typeof window !== "undefined" ? localStorage.getItem("token") : ""}`,
+      },
+    }).then((res) => {
+      if (!res.ok) throw new Error("Failed to delete topic");
+      return null;
+    }),
+};
+
+export const progressApi = {
+  getProgress: (topicId: string) =>
+    apiRequest<{ completed_node_ids: string[] }>(`/trees/${topicId}/progress`),
+
+  saveProgress: (topicId: string, nodeId: string, quizScore?: number) =>
+    apiRequest<{ success: boolean; node_id: string; persisted: boolean }>(
+      `/trees/${topicId}/progress`,
+      {
+        method: "POST",
+        body: JSON.stringify({ node_id: nodeId, quiz_score: quizScore }),
+      }
+    ),
 };
 
 export const adminApi = {

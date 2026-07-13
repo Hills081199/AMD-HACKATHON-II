@@ -1,6 +1,7 @@
 import os
 import asyncio
 import tempfile
+import time
 from typing import List
 from datetime import datetime
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, BackgroundTasks
@@ -9,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db, SessionLocal
 from app.models.user import User, UserTier
 from app.models.topic import Topic, Document, Node, Edge, ProcessingStatus
-from app.auth.dependencies import get_current_user, get_current_user_mock
+from app.auth.dependencies import get_current_user
 from app.services.document_processor import process_documents, extract_text
 
 router = APIRouter()
@@ -54,6 +55,7 @@ def get_file_type(filename: str) -> str:
 def process_topic_documents_sync(topic_id: str):
     """Background task: run the full Steps 1-6 pipeline over uploaded docs."""
     db = SessionLocal()
+    start_time = time.time()  # Track generation start time
     try:
         topic = db.query(Topic).filter(Topic.id == topic_id).first()
         if not topic:
@@ -110,11 +112,13 @@ def process_topic_documents_sync(topic_id: str):
             except Exception as e:
                 print(f"[Ingest] Warning: Failed to save JSON file {out_path}: {e}")
 
-        # Persist results: topic title
+        # Persist results: topic title and generation duration
+        generation_duration = time.time() - start_time
         topic.title = tree_data.get("topic", f"Topic {str(topic_id)[:8]}")
         topic.status = ProcessingStatus.COMPLETED
         topic.error_message = None
         topic.completed_at = datetime.utcnow()
+        topic.generation_duration_seconds = round(generation_duration, 2)
 
         # Persist nodes
         node_id_map: dict[str, object] = {}  # pipeline str ID → DB UUID
@@ -167,7 +171,7 @@ def process_topic_documents_sync(topic_id: str):
 async def ingest_documents(
     background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(...),
-    current_user: User = Depends(get_current_user_mock),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
@@ -262,7 +266,7 @@ async def ingest_documents(
 @router.get("/ingest/{topic_id}/status")
 async def get_processing_status(
     topic_id: str,
-    current_user: User = Depends(get_current_user_mock),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
@@ -295,6 +299,7 @@ async def get_processing_status(
         "error_message": error_message,
         "created_at": topic.created_at.isoformat() if topic.created_at else None,
         "completed_at": topic.completed_at.isoformat() if topic.completed_at else None,
+        "generation_duration_seconds": topic.generation_duration_seconds,
     }
 
 

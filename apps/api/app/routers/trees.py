@@ -9,7 +9,9 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.models.topic import Topic, Node, Edge, ProcessingStatus
+from app.models.topic import Topic, Node, Edge, ProcessingStatus, UserProgress, NodeStatus
+from app.models.user import User
+from app.auth.dependencies import get_current_user
 from app.services.quiz import grade_quiz
 from app.services.teach import FireworksClient, generate_lesson_package
 
@@ -97,8 +99,10 @@ def _load_tree_from_db(topic_id: str, db: Session) -> Optional[dict]:
             "topic_id": str(topic.id),
         }
 
-    # Load nodes
-    nodes = db.query(Node).filter(Node.topic_id == topic_id).all()
+    # Load nodes - IMPORTANT: sort by id to ensure stable ordering across requests
+    # This is critical because node_str_id (n1, n2, etc.) must be consistent
+    # between generate-lesson (which creates quiz with q_n7_1) and submit-quiz
+    nodes = db.query(Node).filter(Node.topic_id == topic_id).order_by(Node.id).all()
     edges = db.query(Edge).filter(Edge.topic_id == topic_id).all()
 
     # Build node ID mapping (UUID -> string ID for frontend)
@@ -448,7 +452,8 @@ def generate_lesson(
 
     # Persist to DB — find the actual Node record by matching title/concept_key
     # node_id here is the string ID (e.g. "n1"), we need to look up the DB row
-    db_nodes = db.query(Node).filter(Node.topic_id == topic_id).all()
+    # IMPORTANT: must use same ordering as _load_tree_from_db (order_by Node.id)
+    db_nodes = db.query(Node).filter(Node.topic_id == topic_id).order_by(Node.id).all()
     # Map string IDs back to DB nodes (same ordering as _load_tree_from_db)
     for i, db_node in enumerate(db_nodes):
         if f"n{i+1}" == node_id:
@@ -465,3 +470,108 @@ def generate_lesson(
         "example": lesson_obj["real_world_example"],
         "quiz": quiz_obj,
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# USER PROGRESS ENDPOINTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@router.get("/{topic_id}/progress")
+def get_user_progress(
+    topic_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get user's progress for a topic - returns list of completed node IDs."""
+    if topic_id == "demo" or not is_valid_uuid(topic_id):
+        # Demo mode - no persistent progress
+        return {"completed_node_ids": []}
+
+    # Get all nodes for this topic to build the node_id mapping
+    nodes = db.query(Node).filter(Node.topic_id == topic_id).order_by(Node.id).all()
+    node_uuid_to_str = {str(node.id): f"n{i+1}" for i, node in enumerate(nodes)}
+
+    # Get user's completed progress
+    progress_records = (
+        db.query(UserProgress)
+        .filter(
+            UserProgress.user_id == current_user.id,
+            UserProgress.status == NodeStatus.COMPLETED,
+        )
+        .all()
+    )
+
+    # Filter to only nodes belonging to this topic and convert to string IDs
+    completed_ids = []
+    for record in progress_records:
+        str_id = node_uuid_to_str.get(str(record.node_id))
+        if str_id:
+            completed_ids.append(str_id)
+
+    return {"completed_node_ids": completed_ids}
+
+
+class ProgressUpdate(BaseModel):
+    node_id: str  # String ID like "n1", "n2", etc.
+    quiz_score: Optional[float] = None
+
+
+@router.post("/{topic_id}/progress")
+def save_user_progress(
+    topic_id: str,
+    update: ProgressUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Save user's progress for completing a node."""
+    if topic_id == "demo" or not is_valid_uuid(topic_id):
+        # Demo mode - just acknowledge, don't persist
+        return {"success": True, "node_id": update.node_id, "persisted": False}
+
+    # Get all nodes for this topic to find the actual UUID
+    nodes = db.query(Node).filter(Node.topic_id == topic_id).order_by(Node.id).all()
+
+    # Find the node UUID from string ID
+    node_uuid = None
+    for i, node in enumerate(nodes):
+        if f"n{i+1}" == update.node_id:
+            node_uuid = node.id
+            break
+
+    if not node_uuid:
+        raise HTTPException(status_code=404, detail=f"Node {update.node_id} not found")
+
+    # Check if progress record exists
+    existing = (
+        db.query(UserProgress)
+        .filter(
+            UserProgress.user_id == current_user.id,
+            UserProgress.node_id == node_uuid,
+        )
+        .first()
+    )
+
+    from datetime import datetime
+
+    if existing:
+        # Update existing record
+        existing.status = NodeStatus.COMPLETED
+        existing.quiz_score = update.quiz_score
+        existing.attempts += 1
+        existing.completed_at = datetime.utcnow()
+    else:
+        # Create new progress record
+        progress = UserProgress(
+            user_id=current_user.id,
+            node_id=node_uuid,
+            status=NodeStatus.COMPLETED,
+            quiz_score=update.quiz_score,
+            attempts=1,
+            completed_at=datetime.utcnow(),
+        )
+        db.add(progress)
+
+    db.commit()
+
+    return {"success": True, "node_id": update.node_id, "persisted": True}

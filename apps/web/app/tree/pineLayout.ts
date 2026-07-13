@@ -1,10 +1,10 @@
 ﻿import type { DisplayNode } from "./types";
 
-export const LEVEL_SPACING_Y = 130;
-export const TOP_PADDING = 80;
-export const BOTTOM_PADDING = 220; // space for trunk + root label
-export const CANVAS_WIDTH = 1440;
-export const MIN_CANVAS_HEIGHT = 800;
+export const LEVEL_SPACING_Y = 80; // tighter vertical spacing for compact tree
+export const TOP_PADDING = 60;
+export const BOTTOM_PADDING = 180; // space for trunk + root label
+export const CANVAS_WIDTH = 1200;
+export const MIN_CANVAS_HEIGHT = 700;
 
 export interface PinePosition {
   x: number;
@@ -64,9 +64,13 @@ export function computePineLayout(nodes: DisplayNode[]): PineLayout {
     const y = canvasHeight - BOTTOM_PADDING - level * LEVEL_SPACING_Y;
 
     // X spread: wide at bottom, narrows toward top (pine shape)
-    // base spread ~1200px at level 0, shrinks to ~200px at maxLevel
+    // Use exponential curve for more natural pine tree silhouette
     const tRatio = maxLevel > 0 ? level / maxLevel : 0;
-    const spreadWidth = CANVAS_WIDTH * (0.82 - tRatio * 0.55); // 1180px -> 390px range
+    // Exponential narrowing: starts wide, narrows more aggressively toward top
+    const narrowFactor = Math.pow(1 - tRatio, 0.6); // 0.6 exponent for gentle curve
+    const minSpread = 80; // minimum spread at top
+    const maxSpread = CANVAS_WIDTH * 0.85; // ~1020px at base
+    const spreadWidth = minSpread + (maxSpread - minSpread) * narrowFactor;
     const n = sorted.length;
 
     sorted.forEach((node, idx) => {

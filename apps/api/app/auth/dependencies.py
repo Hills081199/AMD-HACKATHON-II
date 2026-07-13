@@ -1,4 +1,5 @@
-from fastapi import Depends, HTTPException, status
+from typing import Optional
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
@@ -7,6 +8,7 @@ from app.models.user import User, UserRole, UserTier
 from app.auth.jwt import verify_token
 
 security = HTTPBearer()
+security_optional = HTTPBearer(auto_error=False)
 
 
 def get_current_user(
@@ -44,6 +46,26 @@ def get_current_admin(
             detail="Admin access required",
         )
     return current_user
+
+
+def get_current_user_optional(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
+    db: Session = Depends(get_db),
+) -> Optional[User]:
+    """Get current user if authenticated, otherwise return None."""
+    if credentials is None:
+        return None
+
+    token = credentials.credentials
+    payload = verify_token(token)
+
+    if payload is None:
+        return None
+
+    user_id = payload.get("sub")
+    user = db.query(User).filter(User.id == user_id).first()
+
+    return user
 
 
 def get_current_user_mock(db: Session = Depends(get_db)) -> User:

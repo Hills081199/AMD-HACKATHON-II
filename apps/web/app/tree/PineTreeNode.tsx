@@ -30,6 +30,10 @@ const TIER_DOT_COLORS: Record<PineTier, string> = {
   advanced: "bg-primary shadow-[0_0_14px_rgba(192,193,255,0.9)]",
 };
 
+// Completed node uses a golden/amber color to indicate mastery
+const COMPLETED_DOT_COLOR = "bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.8)]";
+const COMPLETED_TEXT_COLOR = "text-amber-400";
+
 const TIER_TEXT_COLORS: Record<PineTier, string> = {
   foundational: "text-secondary",
   intermediate: "text-tertiary",
@@ -68,20 +72,26 @@ export function PineTreeNode({
   const tier = getTier(node.level, maxLevel);
   const Icon = STATUS_ICONS[node.status];
   const isLocked = node.status === "locked";
+  const isCompleted = node.status === "completed";
 
   const dimmed = isFocusing && !isLit && !isSelf;
   const highlighted = isSelf;
 
+  // Completed nodes use golden color, locked use gray, unlocked use tier color
   const dotClass = isLocked
     ? "bg-surface-container-high border border-dashed border-white/30 shadow-none"
+    : isCompleted
+    ? COMPLETED_DOT_COLOR
     : `${TIER_DOT_COLORS[tier]}`;
 
   const labelClass = isLocked
     ? "text-on-surface-variant/50"
     : highlighted
-    ? `font-semibold ${TIER_TEXT_COLORS[tier]}`
+    ? `font-semibold ${isCompleted ? COMPLETED_TEXT_COLOR : TIER_TEXT_COLORS[tier]}`
     : isFocusing && isLit
-    ? `${TIER_TEXT_COLORS[tier]}`
+    ? `${isCompleted ? COMPLETED_TEXT_COLOR : TIER_TEXT_COLORS[tier]}`
+    : isCompleted
+    ? COMPLETED_TEXT_COLOR
     : "text-on-surface-variant";
 
   const topNodeClasses = isTopNode
@@ -122,16 +132,17 @@ export function PineTreeNode({
           {isLocked && (
             <Lock size={9} className="text-outline/80" strokeWidth={2.5} />
           )}
+          {isCompleted && !isTopNode && (
+            <CheckCircle2 size={12} className="text-amber-900" strokeWidth={2.5} />
+          )}
           {!isLocked && isTopNode && (
             <Star size={12} className="text-on-primary" strokeWidth={2} />
           )}
         </span>
-        {/* Pulsing ring for unlocked non-locked nodes */}
-        {!isLocked && (
+        {/* Pulsing ring for unlocked nodes only (not completed) */}
+        {node.status === "unlocked" && (
           <span
-            className={`absolute inset-0 rounded-full border ${TIER_RING_COLORS[tier]} animate-ping opacity-0 ${
-              node.status === "unlocked" ? "opacity-50" : ""
-            }`}
+            className={`absolute inset-0 rounded-full border ${TIER_RING_COLORS[tier]} animate-ping opacity-50`}
             style={{ animationDuration: "2.4s" }}
           />
         )}
@@ -139,7 +150,7 @@ export function PineTreeNode({
         {highlighted && (
           <span
             className="absolute -inset-2 rounded-full opacity-40 blur-sm"
-            style={{ background: isLocked ? "transparent" : tier === "foundational" ? "#4cd7f6" : tier === "intermediate" ? "#4edea3" : "#c0c1ff" }}
+            style={{ background: isLocked ? "transparent" : isCompleted ? "#fbbf24" : tier === "foundational" ? "#4cd7f6" : tier === "intermediate" ? "#4edea3" : "#c0c1ff" }}
           />
         )}
       </span>

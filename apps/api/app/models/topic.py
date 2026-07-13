@@ -39,6 +39,7 @@ class Topic(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
+    generation_duration_seconds = Column(Float, nullable=True)  # Time taken to generate the tree
 
     # Relationships
     user = relationship("User", back_populates="topics")

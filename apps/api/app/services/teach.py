@@ -57,6 +57,29 @@ class FireworksClient:
             )
         self.timeout = timeout
 
+    def chat(
+        self,
+        messages: list[dict],
+        max_tokens: int = 1000,
+        temperature: float = 0.7,
+    ) -> dict:
+        """Simple chat completion for conversational use cases."""
+        import httpx
+
+        response = httpx.post(
+            f"{self.base_url}/chat/completions",
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            json={
+                "model": self.model,
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            },
+            timeout=self.timeout,
+        )
+        response.raise_for_status()
+        return response.json()
+
     def _chat_json(self, prompt: str) -> dict:
         import httpx
 

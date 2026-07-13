@@ -2,11 +2,15 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { FileText, Network, Settings2, Workflow } from "lucide-react";
+import { FileText, Network, Workflow, Pencil, Trash2, Check, X } from "lucide-react";
 import React from "react";
 
+import { useRouter } from "next/navigation";
 import { Header } from "../components/Header";
+import { userApi, progressApi } from "../lib/api";
+import { useAuth } from "../lib/auth-context";
 import { QuizModal, type QuizResult } from "./QuizModal";
+import { ChatPanel } from "./ChatPanel";
 import { StatsStrip } from "./StatsStrip";
 import { SearchBar } from "./SearchBar";
 import { PineCanvas } from "./PineCanvas";
@@ -22,6 +26,8 @@ const DEFAULT_TOPIC_ID = "intro-to-ml";
 
 function TreePageContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const { user } = useAuth();
   const topicId = searchParams.get("topic") || DEFAULT_TOPIC_ID;
 
   const [tree, setTree] = useState<TreeResponse | null>(null);
@@ -38,6 +44,12 @@ function TreePageContent() {
   // State for on-demand lesson/quiz generation
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // State for topic management (rename/delete)
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // Ref that PineCanvas populates so SearchBar can scroll to a node
   const scrollToRef = useRef<((nodeId: string) => void) | null>(null);
 
@@ -47,12 +59,29 @@ function TreePageContent() {
         if (!response.ok) throw new Error(`GET /trees/${topicId} failed: ${response.status}`);
         return response.json() as Promise<TreeResponse>;
       })
-      .then((data) => {
+      .then(async (data) => {
         setTree(data);
-        seedCompleted(seedCompletedIds(data.nodes));
+
+        // Try to load progress from backend if user is logged in
+        if (user) {
+          try {
+            const progress = await progressApi.getProgress(topicId);
+            // Merge backend progress with any node-level completed status
+            const backendCompleted = new Set(progress.completed_node_ids);
+            const localCompleted = seedCompletedIds(data.nodes);
+            // Union of both sets
+            const allCompleted = [...new Set([...localCompleted, ...backendCompleted])];
+            seedCompleted(allCompleted);
+          } catch {
+            // If progress API fails (e.g., not logged in), fall back to local-only
+            seedCompleted(seedCompletedIds(data.nodes));
+          }
+        } else {
+          seedCompleted(seedCompletedIds(data.nodes));
+        }
       })
       .catch((err: Error) => setError(err.message));
-  }, [topicId, seedCompleted]);
+  }, [topicId, seedCompleted, user]);
 
   /** Update a single node in the tree state (after lesson/quiz generation) */
   const patchNode = useCallback((nodeId: string, patch: Partial<RawTreeNode>) => {
@@ -155,7 +184,8 @@ function TreePageContent() {
   function handleNodeClick(nodeId: string) {
     interaction.onClickNode(nodeId);
     const status = statusById.get(nodeId);
-    if (status === "unlocked") {
+    // Allow clicking on unlocked OR completed nodes (to review content)
+    if (status === "unlocked" || status === "completed") {
       setQuizNodeId(nodeId);
       setQuizResult(null);
       setQuizError(null);
@@ -195,7 +225,18 @@ function TreePageContent() {
       if (!response.ok) throw new Error(`submit-quiz failed: ${response.status}`);
       const body = (await response.json()) as QuizResult;
       setQuizResult(body);
-      if (body.passed) markCompleted(nodeId);
+      if (body.passed) {
+        markCompleted(nodeId);
+        // Save progress to backend if user is logged in
+        if (user) {
+          try {
+            await progressApi.saveProgress(topicId, nodeId, body.score);
+          } catch (err) {
+            // Non-fatal: progress is still saved locally
+            console.warn("[TreePage] Could not save progress to backend:", err);
+          }
+        }
+      }
     } catch (err) {
       setQuizError(err instanceof Error ? err.message : "Could not submit the quiz.");
     } finally {
@@ -214,6 +255,43 @@ function TreePageContent() {
     interaction.onClickNode(nodeId);
     scrollToRef.current?.(nodeId);
   }
+
+  // Topic management handlers
+  const handleStartRename = () => {
+    setEditTitle(tree?.topic ?? "");
+    setIsEditingTitle(true);
+  };
+
+  const handleCancelRename = () => {
+    setIsEditingTitle(false);
+    setEditTitle("");
+  };
+
+  const handleSaveRename = async () => {
+    if (!editTitle.trim() || editTitle === tree?.topic) {
+      handleCancelRename();
+      return;
+    }
+    try {
+      await userApi.renameTopic(topicId, editTitle.trim());
+      setTree((prev) => prev ? { ...prev, topic: editTitle.trim() } : prev);
+      setIsEditingTitle(false);
+    } catch (err) {
+      console.error("Failed to rename topic:", err);
+    }
+  };
+
+  const handleDeleteTopic = async () => {
+    setIsDeleting(true);
+    try {
+      await userApi.deleteTopic(topicId);
+      router.push("/profile");
+    } catch (err) {
+      console.error("Failed to delete topic:", err);
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
 
   if (error) {
     return (
@@ -246,12 +324,53 @@ function TreePageContent() {
             <div className="mb-2 flex h-12 w-12 items-center justify-center rounded bg-primary-container/20 text-primary">
               <Workflow size={24} />
             </div>
-            <h2
-              className="truncate text-xl font-semibold text-on-surface"
-              title={tree?.topic ?? "Mastery Hub"}
-            >
-              {tree?.topic ?? "Mastery Hub"}
-            </h2>
+            {isEditingTitle ? (
+              <div className="flex flex-col gap-2">
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSaveRename();
+                    if (e.key === "Escape") handleCancelRename();
+                  }}
+                  className="w-full rounded border border-white/20 bg-surface-container px-2 py-1.5 text-sm text-on-surface focus:border-primary focus:outline-none"
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleSaveRename}
+                    className="flex flex-1 items-center justify-center gap-1 rounded bg-tertiary/20 px-2 py-1 text-xs text-tertiary hover:bg-tertiary/30"
+                  >
+                    <Check size={14} />
+                    Save
+                  </button>
+                  <button
+                    onClick={handleCancelRename}
+                    className="flex flex-1 items-center justify-center gap-1 rounded bg-white/5 px-2 py-1 text-xs text-on-surface-variant hover:bg-white/10"
+                  >
+                    <X size={14} />
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="group flex items-center gap-2">
+                <h2
+                  className="flex-1 truncate text-xl font-semibold text-on-surface"
+                  title={tree?.topic ?? "Mastery Hub"}
+                >
+                  {tree?.topic ?? "Mastery Hub"}
+                </h2>
+                <button
+                  onClick={handleStartRename}
+                  className="rounded p-1 text-on-surface-variant opacity-0 transition-opacity hover:bg-white/10 group-hover:opacity-100"
+                  title="Rename topic"
+                >
+                  <Pencil size={14} />
+                </button>
+              </div>
+            )}
             <p className="text-tertiary">{percentComplete}% Complete</p>
           </div>
           <ul className="flex flex-1 flex-col">
@@ -268,10 +387,13 @@ function TreePageContent() {
               </span>
             </li>
             <li>
-              <span className="flex cursor-not-allowed items-center gap-4 px-6 py-3 text-on-surface-variant/40">
-                <Settings2 size={20} />
-                Settings
-              </span>
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="flex w-full items-center gap-4 px-6 py-3 text-on-surface-variant transition-colors hover:bg-error/10 hover:text-error"
+              >
+                <Trash2 size={20} />
+                Delete Topic
+              </button>
             </li>
           </ul>
 
@@ -291,6 +413,34 @@ function TreePageContent() {
             </div>
           </div>
         </nav>
+
+        {/* Delete confirmation modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="mx-4 w-full max-w-md rounded-xl border border-white/10 bg-surface-container p-6 shadow-2xl">
+              <h3 className="mb-2 text-lg font-semibold text-on-surface">Delete Topic?</h3>
+              <p className="mb-6 text-sm text-on-surface-variant">
+                This will permanently delete &quot;{tree?.topic}&quot; and all associated data including documents, nodes, and progress. This action cannot be undone.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="rounded-lg px-4 py-2 text-sm text-on-surface-variant transition-colors hover:bg-white/10"
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteTopic}
+                  disabled={isDeleting}
+                  className="flex items-center gap-2 rounded-lg bg-error px-4 py-2 text-sm font-medium text-on-error transition-colors hover:bg-error/90 disabled:opacity-50"
+                >
+                  {isDeleting ? "Deleting..." : "Delete Topic"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Main panel */}
         <main className="relative flex flex-1 flex-col overflow-hidden md:ml-64">
@@ -352,9 +502,9 @@ function TreePageContent() {
             />
           </div>
 
-          {/* Source docs panel (bottom-right, collapsible) */}
+          {/* Source docs panel (bottom-left, collapsible) */}
           {sourceDocs.length > 0 && (
-            <div className="glass-panel absolute bottom-4 right-4 z-20 hidden max-h-64 w-64 flex-col gap-3 overflow-y-auto rounded-xl p-4 text-stats-mono md:flex">
+            <div className="glass-panel absolute bottom-4 left-4 z-20 hidden max-h-64 w-64 flex-col gap-3 overflow-y-auto rounded-xl p-4 text-stats-mono md:flex">
               <h3 className="text-label-caps text-on-surface-variant">Source Docs</h3>
               {sourceDocs.map((source) => (
                 <div
@@ -392,6 +542,9 @@ function TreePageContent() {
           onClose={closeQuiz}
         />
       )}
+
+      {/* Chat with document panel */}
+      <ChatPanel topicId={topicId} topicTitle={tree?.topic} />
     </div>
   );
 }

@@ -20,6 +20,11 @@ import {
   CheckCircle,
   AlertCircle,
   ExternalLink,
+  Pencil,
+  Trash2,
+  Check,
+  MoreVertical,
+  Timer,
 } from "lucide-react";
 import { useAuth } from "../lib/auth-context";
 import { userApi } from "../lib/api";
@@ -36,6 +41,13 @@ export default function ProfilePage() {
   const [displayName, setDisplayName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
+  const [editingTopicTitle, setEditingTopicTitle] = useState("");
+  const [deletingTopicId, setDeletingTopicId] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [topicToDelete, setTopicToDelete] = useState<TopicSummary | null>(null);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -65,6 +77,55 @@ export default function ProfilePage() {
       setError(err instanceof Error ? err.message : "Failed to update profile");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleStartRenameTopic = (topic: TopicSummary) => {
+    setEditingTopicId(topic.id);
+    setEditingTopicTitle(topic.title || "");
+    setMenuOpenId(null);
+  };
+
+  const handleCancelRenameTopic = () => {
+    setEditingTopicId(null);
+    setEditingTopicTitle("");
+  };
+
+  const handleSaveRenameTopic = async (topicId: string) => {
+    if (!editingTopicTitle.trim()) {
+      handleCancelRenameTopic();
+      return;
+    }
+    try {
+      const updated = await userApi.renameTopic(topicId, editingTopicTitle.trim());
+      setTopics((prev) =>
+        prev.map((t) => (t.id === topicId ? { ...t, title: updated.title } : t))
+      );
+      setEditingTopicId(null);
+    } catch (err) {
+      console.error("Failed to rename topic:", err);
+    }
+  };
+
+  const handleConfirmDelete = (topic: TopicSummary) => {
+    setTopicToDelete(topic);
+    setShowDeleteModal(true);
+    setMenuOpenId(null);
+  };
+
+  const handleDeleteTopic = async () => {
+    if (!topicToDelete) return;
+    setDeletingTopicId(topicToDelete.id);
+    try {
+      await userApi.deleteTopic(topicToDelete.id);
+      setTopics((prev) => prev.filter((t) => t.id !== topicToDelete.id));
+      userApi.getUsage().then(setUsage).catch(console.error);
+    } catch (err) {
+      console.error("Failed to delete topic:", err);
+    } finally {
+      setDeletingTopicId(null);
+      setShowDeleteModal(false);
+      setTopicToDelete(null);
     }
   };
 
@@ -348,12 +409,42 @@ export default function ProfilePage() {
                   className="flex items-center justify-between rounded-lg border border-outline-variant bg-surface-container p-4 transition-colors hover:border-secondary/50"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      {getStatusIcon(topic.status)}
-                      <h4 className="font-medium text-on-surface truncate">
-                        {topic.title || "Untitled Learning Path"}
-                      </h4>
-                    </div>
+                    {editingTopicId === topic.id ? (
+                      <div className="flex items-center gap-2 mb-1">
+                        <input
+                          type="text"
+                          value={editingTopicTitle}
+                          onChange={(e) => setEditingTopicTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleSaveRenameTopic(topic.id);
+                            if (e.key === "Escape") handleCancelRenameTopic();
+                          }}
+                          className="flex-1 rounded border border-white/20 bg-surface px-2 py-1 text-sm text-on-surface focus:border-primary focus:outline-none"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => handleSaveRenameTopic(topic.id)}
+                          className="rounded p-1.5 text-tertiary hover:bg-tertiary/20"
+                          title="Save"
+                        >
+                          <Check size={16} />
+                        </button>
+                        <button
+                          onClick={handleCancelRenameTopic}
+                          className="rounded p-1.5 text-on-surface-variant hover:bg-white/10"
+                          title="Cancel"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 mb-1">
+                        {getStatusIcon(topic.status)}
+                        <h4 className="font-medium text-on-surface truncate">
+                          {topic.title || "Untitled Learning Path"}
+                        </h4>
+                      </div>
+                    )}
                     <div className="flex items-center gap-4 text-sm text-on-surface-variant">
                       <span className="flex items-center gap-1">
                         <FileText size={14} />
@@ -367,32 +458,121 @@ export default function ProfilePage() {
                         {getStatusLabel(topic.status)}
                       </span>
                     </div>
+                    {/* Progress bar for completed topics */}
+                    {topic.status === "completed" && topic.node_count > 0 && (
+                      <div className="mt-2 flex items-center gap-3">
+                        <div className="h-1.5 flex-1 max-w-48 overflow-hidden rounded-full bg-surface/50">
+                          <div
+                            className="h-full rounded-full bg-amber-400 transition-all duration-300"
+                            style={{ width: `${topic.progress_percent}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-medium text-amber-400">
+                          {topic.progress_percent}% learned
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  {topic.status === "completed" && (
-                    <Link
-                      href={`/tree?topic=${topic.id}`}
-                      className="ml-4 flex items-center gap-2 rounded-lg bg-secondary/10 px-4 py-2 text-sm font-medium text-secondary transition-colors hover:bg-secondary/20"
-                    >
-                      <TreeDeciduous size={16} />
-                      View Tree
-                    </Link>
-                  )}
-                  {topic.status === "processing" && (
-                    <span className="ml-4 text-sm text-on-surface-variant">
-                      Processing...
-                    </span>
-                  )}
-                  {topic.status === "failed" && (
-                    <span className="ml-4 text-sm text-error">
-                      Failed
-                    </span>
-                  )}
+
+                  <div className="ml-4 flex items-center gap-2">
+                    {topic.status === "completed" && (
+                      <Link
+                        href={`/tree?topic=${topic.id}`}
+                        className="flex items-center gap-2 rounded-lg bg-secondary/10 px-4 py-2 text-sm font-medium text-secondary transition-colors hover:bg-secondary/20"
+                      >
+                        <TreeDeciduous size={16} />
+                        View Tree
+                      </Link>
+                    )}
+                    {topic.status === "processing" && (
+                      <span className="text-sm text-on-surface-variant">
+                        Processing...
+                      </span>
+                    )}
+                    {topic.status === "failed" && (
+                      <span className="text-sm text-error">
+                        Failed
+                      </span>
+                    )}
+
+                    {/* Actions menu */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setMenuOpenId(menuOpenId === topic.id ? null : topic.id)}
+                        className="rounded p-1.5 text-on-surface-variant hover:bg-white/10"
+                      >
+                        <MoreVertical size={18} />
+                      </button>
+                      {menuOpenId === topic.id && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-10"
+                            onClick={() => setMenuOpenId(null)}
+                          />
+                          <div className="absolute right-0 top-full z-20 mt-1 w-36 rounded-lg border border-white/10 bg-surface-container-high py-1 shadow-xl">
+                            <button
+                              onClick={() => handleStartRenameTopic(topic)}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-sm text-on-surface-variant hover:bg-white/10"
+                            >
+                              <Pencil size={14} />
+                              Rename
+                            </button>
+                            <button
+                              onClick={() => handleConfirmDelete(topic)}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-sm text-error hover:bg-error/10"
+                            >
+                              <Trash2 size={14} />
+                              Delete
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
       </main>
+
+      {/* Delete confirmation modal */}
+      {showDeleteModal && topicToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-md rounded-xl border border-white/10 bg-surface-container p-6 shadow-2xl">
+            <h3 className="mb-2 text-lg font-semibold text-on-surface">Delete Learning Path?</h3>
+            <p className="mb-6 text-sm text-on-surface-variant">
+              This will permanently delete &quot;{topicToDelete.title || "Untitled Learning Path"}&quot; and all associated data including documents, nodes, and progress. This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setTopicToDelete(null);
+                }}
+                className="rounded-lg px-4 py-2 text-sm text-on-surface-variant transition-colors hover:bg-white/10"
+                disabled={deletingTopicId !== null}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteTopic}
+                disabled={deletingTopicId !== null}
+                className="flex items-center gap-2 rounded-lg bg-error px-4 py-2 text-sm font-medium text-on-error transition-colors hover:bg-error/90 disabled:opacity-50"
+              >
+                {deletingTopicId ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -36,6 +36,9 @@ export interface TopicSummary {
   title: string | null;
   status: "pending" | "processing" | "completed" | "failed";
   document_count: number;
+  node_count: number;
+  progress_percent: number;
   created_at: string;
   completed_at: string | null;
+  generation_duration_seconds: number | null;
 }

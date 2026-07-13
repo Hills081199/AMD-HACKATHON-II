@@ -22,8 +22,11 @@ class TopicSummary(BaseModel):
     title: str | None
     status: str
     document_count: int
+    node_count: int = 0
+    progress_percent: int = 0  # 0-100 based on completed nodes
     created_at: datetime
     completed_at: datetime | None
+    generation_duration_seconds: float | None = None
 
     class Config:
         from_attributes = True
@@ -112,6 +115,8 @@ def get_user_topics(
     db: Session = Depends(get_db),
 ):
     """Get all learning paths (topics) created by the user."""
+    from app.models.topic import Document, Node, UserProgress, NodeStatus
+
     topics = db.query(Topic).filter(
         Topic.user_id == current_user.id
     ).order_by(Topic.created_at.desc()).all()
@@ -119,16 +124,105 @@ def get_user_topics(
     result = []
     for topic in topics:
         # Count documents for this topic
-        from app.models.topic import Document
         doc_count = db.query(Document).filter(Document.topic_id == topic.id).count()
+
+        # Count nodes and completed nodes for progress
+        node_count = db.query(Node).filter(Node.topic_id == topic.id).count()
+
+        # Count completed nodes from UserProgress
+        completed_count = 0
+        if node_count > 0:
+            # Get all node IDs for this topic
+            node_ids = [n.id for n in db.query(Node.id).filter(Node.topic_id == topic.id).all()]
+            # Count how many have completed status in UserProgress
+            completed_count = db.query(UserProgress).filter(
+                UserProgress.user_id == current_user.id,
+                UserProgress.node_id.in_(node_ids),
+                UserProgress.status == NodeStatus.COMPLETED,
+            ).count()
+
+        progress_percent = round((completed_count / node_count) * 100) if node_count > 0 else 0
 
         result.append(TopicSummary(
             id=str(topic.id),
             title=topic.title,
             status=topic.status.value,
             document_count=doc_count,
+            node_count=node_count,
+            progress_percent=progress_percent,
             created_at=topic.created_at,
             completed_at=topic.completed_at,
+            generation_duration_seconds=topic.generation_duration_seconds,
         ))
 
     return result
+
+
+class TopicUpdate(BaseModel):
+    title: str
+
+
+@router.put("/topics/{topic_id}", response_model=TopicSummary)
+def update_topic(
+    topic_id: str,
+    update_data: TopicUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Rename a topic (learning path)."""
+    topic = db.query(Topic).filter(
+        Topic.id == topic_id,
+        Topic.user_id == current_user.id,
+    ).first()
+
+    if not topic:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Topic not found",
+        )
+
+    topic.title = update_data.title
+    db.commit()
+    db.refresh(topic)
+
+    from app.models.topic import Document
+    doc_count = db.query(Document).filter(Document.topic_id == topic.id).count()
+
+    return TopicSummary(
+        id=str(topic.id),
+        title=topic.title,
+        status=topic.status.value,
+        document_count=doc_count,
+        created_at=topic.created_at,
+        completed_at=topic.completed_at,
+        generation_duration_seconds=topic.generation_duration_seconds,
+    )
+
+
+@router.delete("/topics/{topic_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_topic(
+    topic_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete a topic and all associated data (documents, nodes, edges)."""
+    topic = db.query(Topic).filter(
+        Topic.id == topic_id,
+        Topic.user_id == current_user.id,
+    ).first()
+
+    if not topic:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Topic not found",
+        )
+
+    # Decrement user's skill_trees_created count
+    if current_user.skill_trees_created > 0:
+        current_user.skill_trees_created -= 1
+
+    # Delete topic (cascade will delete documents, nodes, edges)
+    db.delete(topic)
+    db.commit()
+
+    return None

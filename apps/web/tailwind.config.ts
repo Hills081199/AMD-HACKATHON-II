@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import typography from "@tailwindcss/typography";
 
 // Design tokens from stitch_atlas_learning_path_graph/atlas_learning_system/DESIGN.md
 // ("Atlas Learning System" — Modern Glassmorphic, deep indigo/cyan/emerald palette).
@@ -89,7 +90,7 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
+  plugins: [typography],
 };
 
 export default config;

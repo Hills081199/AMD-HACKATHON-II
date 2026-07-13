@@ -20,6 +20,9 @@ def test_submit_quiz_with_correct_answers_passes():
     assert body["node_id"] == "n3"
     assert body["passed"] is True
     assert body["score"] == 1.0
+    # Verify correctAnswers is returned for frontend display
+    assert "correctAnswers" in body
+    assert body["correctAnswers"]["q_n3_1"] == 1
 
 
 def test_submit_quiz_with_wrong_answers_fails():
@@ -32,6 +35,9 @@ def test_submit_quiz_with_wrong_answers_fails():
     body = response.json()
     assert body["passed"] is False
     assert body["score"] == 0.0
+    # Even on failure, correctAnswers should be returned so user can see the right answers
+    assert "correctAnswers" in body
+    assert body["correctAnswers"]["q_n3_1"] == 1
 
 
 def test_submit_quiz_for_unknown_node_returns_404():

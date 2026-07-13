@@ -24,15 +24,21 @@ interface PineCanvasProps {
 
 /** Decorative pine foliage tiers rendered as CSS clip-path polygons */
 function PineFoliage({ canvasHeight, numTiers }: { canvasHeight: number; numTiers: number }) {
-  // Pine polygon clip-path
-  const pineClip = "polygon(50% 0%, 57% 26%, 78% 30%, 66% 52%, 92% 58%, 79% 78%, 100% 100%, 0% 100%, 21% 78%, 8% 58%, 34% 52%, 22% 30%, 43% 26%)";
-  const tiers = [
-    { widthPx: 1180, heightPx: 300, opacity: 0.8, bottomOffset: 200 },
-    { widthPx: 920, heightPx: 270, opacity: 0.85, bottomOffset: 420 },
-    { widthPx: 700, heightPx: 250, opacity: 0.9, bottomOffset: 620 },
-    { widthPx: 500, heightPx: 230, opacity: 0.9, bottomOffset: 800 },
-    { widthPx: 310, heightPx: 200, opacity: 0.95, bottomOffset: 960 },
-  ].slice(0, Math.min(numTiers, 5));
+  // Pine polygon clip-path - smoother pine shape
+  const pineClip = "polygon(50% 0%, 55% 20%, 75% 25%, 62% 45%, 85% 52%, 72% 70%, 95% 80%, 78% 90%, 100% 100%, 0% 100%, 22% 90%, 5% 80%, 28% 70%, 15% 52%, 38% 45%, 25% 25%, 45% 20%)";
+
+  // Dynamic tiers based on canvas height - more compact spacing
+  const baseTiers = [
+    { widthPx: 1000, heightPx: 220, opacity: 0.75, bottomOffset: 160 },
+    { widthPx: 800, heightPx: 200, opacity: 0.8, bottomOffset: 320 },
+    { widthPx: 620, heightPx: 180, opacity: 0.85, bottomOffset: 460 },
+    { widthPx: 460, heightPx: 160, opacity: 0.88, bottomOffset: 580 },
+    { widthPx: 320, heightPx: 140, opacity: 0.9, bottomOffset: 680 },
+    { widthPx: 200, heightPx: 120, opacity: 0.92, bottomOffset: 770 },
+  ];
+
+  // Filter tiers that fit within canvas
+  const tiers = baseTiers.filter(t => t.bottomOffset + t.heightPx < canvasHeight - 40).slice(0, Math.min(numTiers, 6));
 
   return (
     <div className="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
@@ -86,15 +92,15 @@ function PineFoliage({ canvasHeight, numTiers }: { canvasHeight: number; numTier
 /** Trunk and ground decoration at the very bottom */
 function PineTrunk({ canvasWidth, canvasHeight }: { canvasWidth: number; canvasHeight: number }) {
   return (
-    <div className="pointer-events-none absolute z-0" aria-hidden="true" style={{ left: 0, right: 0, bottom: 0, height: 220 }}>
+    <div className="pointer-events-none absolute z-0" aria-hidden="true" style={{ left: 0, right: 0, bottom: 0, height: 180 }}>
       {/* Ground glow */}
       <div
         style={{
           position: "absolute",
           left: "50%",
-          bottom: 70,
-          width: 900,
-          height: 80,
+          bottom: 50,
+          width: 700,
+          height: 60,
           transform: "translateX(-50%)",
           borderRadius: "50%",
           background: "radial-gradient(closest-side,rgba(22,50,68,0.35),transparent 70%)",
@@ -105,19 +111,19 @@ function PineTrunk({ canvasWidth, canvasHeight }: { canvasWidth: number; canvasH
         style={{
           position: "absolute",
           left: "50%",
-          bottom: 118,
-          width: 46,
-          height: 150,
+          bottom: 90,
+          width: 40,
+          height: 120,
           transform: "translateX(-50%)",
-          borderRadius: "10px 10px 4px 4px",
+          borderRadius: "8px 8px 4px 4px",
           background: "linear-gradient(180deg,#5a4030,#3a2a1e)",
-          boxShadow: "inset 6px 0 10px rgba(0,0,0,0.33), inset -6px 0 10px rgba(0,0,0,0.25)",
+          boxShadow: "inset 5px 0 8px rgba(0,0,0,0.33), inset -5px 0 8px rgba(0,0,0,0.25)",
         }}
       />
       {/* Root label */}
       <div
         className="text-label-caps text-on-surface-variant/50 tracking-widest absolute"
-        style={{ left: "50%", bottom: 66, transform: "translateX(-50%)", whiteSpace: "nowrap" }}
+        style={{ left: "50%", bottom: 50, transform: "translateX(-50%)", whiteSpace: "nowrap", fontSize: "11px" }}
       >
         Roots · Level 0
       </div>

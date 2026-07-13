@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import graph, teach, trees, auth, user, admin, ingest
+from app.routers import graph, teach, trees, auth, user, admin, ingest, chat
 from app.db.database import engine, Base
 # Import models to register them with SQLAlchemy
 from app.models import user as user_model  # noqa: F401
@@ -38,6 +38,9 @@ app.include_router(ingest.router, tags=["ingest"])
 app.include_router(trees.router, prefix="/trees", tags=["trees"])
 app.include_router(graph.router, prefix="/graph", tags=["graph"])
 app.include_router(teach.router, prefix="/trees", tags=["teach"])
+
+# Chat route
+app.include_router(chat.router, prefix="/chat", tags=["chat"])
 
 
 @app.get("/health")
