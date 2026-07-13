@@ -16,8 +16,28 @@ services:
     ports:
       - "8000:8000"
     env_file: .env
+    volumes:
+      - ./data:/data
+      - ./apps/api:/app
+    environment:
+      - SAMPLE_TREE_PATH=/data/generated/demo_tree.generated.json
+      - DB_URL=postgresql://postgres:postgres@db:5432/atlas
+      - GPU_WORKER_PATH=/gpu-worker
     depends_on:
       - gpu-worker
+      - db
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=atlas
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
 
   gpu-worker:
     build:
@@ -26,8 +46,25 @@ services:
     ports:
       - "8100:8100"
     env_file: .env
-    devices:
-      - /dev/kfd
-      - /dev/dri
-    group_add:
-      - video
+    # AMD ROCm device mounts — only available on Linux hosts with ROCm drivers.
+    # On Windows/macOS dev machines (or when LLM_PROVIDER=openai), comment
+    # these three lines out so Docker Desktop doesn't error on missing /dev/kfd.
+    # Uncomment for actual AMD GPU submission hardware:
+    # devices:
+    #   - /dev/kfd
+    #   - /dev/dri
+    # group_add:
+    #   - video
+
+  ai-quiz-service:
+    build:
+      context: ./packages/ai-quiz-service
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    env_file: .env
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+
+volumes:
+  pgdata:
