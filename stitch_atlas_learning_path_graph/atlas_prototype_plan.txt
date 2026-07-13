@@ -1,0 +1,16 @@
+# Atlas Product Requirements Document (Hackathon Prototype)
+
+## Project Overview
+Atlas is an AI-powered learning platform that takes a messy pile of documents and transforms them into an optimized, dependency-aware skill tree.
+
+## Core User Journey (The Demo)
+1. **The Entry**: User arrives at a clean, high-impact landing page.
+2. **The Upload**: User drags and drops multiple PDFs/slides. A "Processing" animation shows the AI building the concept graph (mentioning AMD ROCm/Fireworks AI).
+3. **The Discovery**: An interactive "Concept Map" or "Skill Tree" appears. Nodes are connected by dependency lines.
+4. **The Learning**: User clicks a node to see a "Lesson", a "Real-world Example", and a "Checkpoint Quiz".
+
+## Screen List
+1. **Landing & Initial Upload**: Minimalist, focuses on the "messy pile to structured path" value prop.
+2. **Processing State**: Visual feedback of concept extraction and topological sorting.
+3. **Main Dashboard (The Atlas)**: The interactive skill tree/dependency graph.
+4. **Learning Modal/View**: Content display for a single concept node.

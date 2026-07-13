@@ -1,0 +1,858 @@
+{
+  "topic": "Topic 27d159ee",
+  "topic_id": "27d159ee-0f6f-4282-b8c4-da67c24b848c",
+  "generated_at": "2026-07-11T02:32:17.452981Z",
+  "document_count": 1,
+  "nodes": [
+    {
+      "id": "concept_001",
+      "title": "Deep Learning Model Training",
+      "concept_key": "deep_learning_model_training",
+      "level": 0,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 1
+        }
+      ],
+      "position": {
+        "x": -1540.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_006",
+      "title": "Session Persistence",
+      "concept_key": "session_persistence",
+      "level": 0,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 1
+        }
+      ],
+      "position": {
+        "x": -1320.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_007",
+      "title": "REST API Development with Django DRF",
+      "concept_key": "rest_api_development_with_django_drf",
+      "level": 0,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 1
+        }
+      ],
+      "position": {
+        "x": -1100.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_009",
+      "title": "Containerization with Docker",
+      "concept_key": "containerization_with_docker",
+      "level": 0,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 1
+        }
+      ],
+      "position": {
+        "x": -880.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_011",
+      "title": "Role-Based Access Control",
+      "concept_key": "role_based_access_control",
+      "level": 0,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": -660.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_012",
+      "title": "Human Pose Estimation with VNect",
+      "concept_key": "human_pose_estimation_with_vnect",
+      "level": 0,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": -440.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_014",
+      "title": "Dialog Management with Rasa",
+      "concept_key": "dialog_management_with_rasa",
+      "level": 0,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": -220.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_015",
+      "title": "Voice Interaction with Speech-to-Text",
+      "concept_key": "voice_interaction_with_speech_to_text",
+      "level": 0,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": 0.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_018",
+      "title": "Biometric Device Integration",
+      "concept_key": "biometric_device_integration",
+      "level": 0,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": 220.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_020",
+      "title": "Time-Series Database with InfluxDB",
+      "concept_key": "time_series_database_with_influxdb",
+      "level": 0,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": 440.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_021",
+      "title": "Agile/Scrum Project Management",
+      "concept_key": "agile_scrum_project_management",
+      "level": 0,
+      "difficulty": "foundational",
+      "difficulty_badge": "⭐ Foundational",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": 660.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_023",
+      "title": "Ensemble Retrieval (Vector + BM25)",
+      "concept_key": "ensemble_retrieval_vector_bm25",
+      "level": 0,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": 880.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_024",
+      "title": "Spaced Repetition with SM-2",
+      "concept_key": "spaced_repetition_with_sm_2",
+      "level": 0,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": 1100.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_025",
+      "title": "Adaptive Quiz Generation",
+      "concept_key": "adaptive_quiz_generation",
+      "level": 0,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": 1320.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_026",
+      "title": "Path Planning Algorithms (RRT, RRT*, A*)",
+      "concept_key": "path_planning_algorithms_rrt_rrt_a",
+      "level": 0,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 50,
+      "estimated_minutes": 10,
+      "status": "unlocked",
+      "prerequisites": [],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": 1540.0,
+        "y": 0
+      }
+    },
+    {
+      "id": "concept_003",
+      "title": "Edge AI Acceleration (VitisAI)",
+      "concept_key": "edge_ai_acceleration_vitisai",
+      "level": 1,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 100,
+      "estimated_minutes": 15,
+      "status": "locked",
+      "prerequisites": [
+        "concept_001"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 1
+        }
+      ],
+      "position": {
+        "x": -770.0,
+        "y": 160
+      }
+    },
+    {
+      "id": "concept_002",
+      "title": "Model Conversion (PyTorch to Caffe)",
+      "concept_key": "model_conversion_pytorch_to_caffe",
+      "level": 1,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 100,
+      "estimated_minutes": 15,
+      "status": "locked",
+      "prerequisites": [
+        "concept_001"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 1
+        }
+      ],
+      "position": {
+        "x": -550.0,
+        "y": 160
+      }
+    },
+    {
+      "id": "concept_005",
+      "title": "Full-Stack Annotation Tool",
+      "concept_key": "full_stack_annotation_tool",
+      "level": 1,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 100,
+      "estimated_minutes": 15,
+      "status": "locked",
+      "prerequisites": [
+        "concept_006"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 1
+        }
+      ],
+      "position": {
+        "x": -330.0,
+        "y": 160
+      }
+    },
+    {
+      "id": "concept_013",
+      "title": "Retrieval-Augmented Generation",
+      "concept_key": "retrieval_augmented_generation",
+      "level": 1,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 100,
+      "estimated_minutes": 15,
+      "status": "locked",
+      "prerequisites": [
+        "concept_001",
+        "concept_011"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": -110.0,
+        "y": 160
+      }
+    },
+    {
+      "id": "concept_017",
+      "title": "Real-Time Kanban Board",
+      "concept_key": "real_time_kanban_board",
+      "level": 1,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 100,
+      "estimated_minutes": 15,
+      "status": "locked",
+      "prerequisites": [
+        "concept_021"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": 110.0,
+        "y": 160
+      }
+    },
+    {
+      "id": "concept_016",
+      "title": "ERP System Architecture",
+      "concept_key": "erp_system_architecture",
+      "level": 1,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 100,
+      "estimated_minutes": 15,
+      "status": "locked",
+      "prerequisites": [
+        "concept_006",
+        "concept_021",
+        "concept_011"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": 330.0,
+        "y": 160
+      }
+    },
+    {
+      "id": "concept_008",
+      "title": "Microservices with RabbitMQ",
+      "concept_key": "microservices_with_rabbitmq",
+      "level": 1,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 100,
+      "estimated_minutes": 15,
+      "status": "locked",
+      "prerequisites": [
+        "concept_007",
+        "concept_021"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 1
+        }
+      ],
+      "position": {
+        "x": 550.0,
+        "y": 160
+      }
+    },
+    {
+      "id": "concept_010",
+      "title": "Automated Guided Vehicle Integration",
+      "concept_key": "automated_guided_vehicle_integration",
+      "level": 1,
+      "difficulty": "intermediate",
+      "difficulty_badge": "⭐⭐ Intermediate",
+      "xp_reward": 100,
+      "estimated_minutes": 15,
+      "status": "locked",
+      "prerequisites": [
+        "concept_026"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 1
+        }
+      ],
+      "position": {
+        "x": 770.0,
+        "y": 160
+      }
+    },
+    {
+      "id": "concept_004",
+      "title": "C++ Inference Implementation",
+      "concept_key": "c_inference_implementation",
+      "level": 2,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 150,
+      "estimated_minutes": 20,
+      "status": "locked",
+      "prerequisites": [
+        "concept_003"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 1
+        }
+      ],
+      "position": {
+        "x": -220.0,
+        "y": 320
+      }
+    },
+    {
+      "id": "concept_022",
+      "title": "Multi-Agent RAG Architecture",
+      "concept_key": "multi_agent_rag_architecture",
+      "level": 2,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 150,
+      "estimated_minutes": 20,
+      "status": "locked",
+      "prerequisites": [
+        "concept_013",
+        "concept_014"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 2
+        },
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 3
+        }
+      ],
+      "position": {
+        "x": 0.0,
+        "y": 320
+      }
+    },
+    {
+      "id": "concept_019",
+      "title": "Real-Time Robot Monitoring and Control",
+      "concept_key": "real_time_robot_monitoring_and_control",
+      "level": 2,
+      "difficulty": "advanced",
+      "difficulty_badge": "⭐⭐⭐ Advanced",
+      "xp_reward": 150,
+      "estimated_minutes": 20,
+      "status": "locked",
+      "prerequisites": [
+        "concept_005",
+        "concept_010",
+        "concept_011",
+        "concept_017"
+      ],
+      "lesson": {
+        "summary": "",
+        "real_world_example": ""
+      },
+      "quiz": null,
+      "sources": [
+        {
+          "doc_id": "Nguyen_Ngoc_Hieu_CV_updated.pdf",
+          "page": 2
+        }
+      ],
+      "position": {
+        "x": 220.0,
+        "y": 320
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "concept_001",
+      "to": "concept_003"
+    },
+    {
+      "from": "concept_001",
+      "to": "concept_013"
+    },
+    {
+      "from": "concept_001",
+      "to": "concept_002"
+    },
+    {
+      "from": "concept_003",
+      "to": "concept_004"
+    },
+    {
+      "from": "concept_013",
+      "to": "concept_022"
+    },
+    {
+      "from": "concept_006",
+      "to": "concept_016"
+    },
+    {
+      "from": "concept_006",
+      "to": "concept_005"
+    },
+    {
+      "from": "concept_005",
+      "to": "concept_019"
+    },
+    {
+      "from": "concept_007",
+      "to": "concept_008"
+    },
+    {
+      "from": "concept_021",
+      "to": "concept_017"
+    },
+    {
+      "from": "concept_021",
+      "to": "concept_016"
+    },
+    {
+      "from": "concept_021",
+      "to": "concept_008"
+    },
+    {
+      "from": "concept_010",
+      "to": "concept_019"
+    },
+    {
+      "from": "concept_026",
+      "to": "concept_010"
+    },
+    {
+      "from": "concept_011",
+      "to": "concept_016"
+    },
+    {
+      "from": "concept_011",
+      "to": "concept_013"
+    },
+    {
+      "from": "concept_011",
+      "to": "concept_019"
+    },
+    {
+      "from": "concept_014",
+      "to": "concept_022"
+    },
+    {
+      "from": "concept_017",
+      "to": "concept_019"
+    }
+  ],
+  "dropped_edges": [],
+  "user_progress": {
+    "completed_nodes": [],
+    "unlocked_nodes": [
+      "concept_001",
+      "concept_006",
+      "concept_007",
+      "concept_009",
+      "concept_011",
+      "concept_012",
+      "concept_014",
+      "concept_015",
+      "concept_018",
+      "concept_020",
+      "concept_021",
+      "concept_023",
+      "concept_024",
+      "concept_025",
+      "concept_026"
+    ],
+    "locked_nodes": [
+      "concept_003",
+      "concept_002",
+      "concept_005",
+      "concept_013",
+      "concept_017",
+      "concept_016",
+      "concept_008",
+      "concept_010",
+      "concept_004",
+      "concept_022",
+      "concept_019"
+    ],
+    "total_nodes": 26,
+    "percent_complete": 0
+  }
+}
